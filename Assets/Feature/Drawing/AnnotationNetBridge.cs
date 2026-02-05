@@ -3,76 +3,79 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// 로컬 입력으로 생성된 드로잉 데이터를 네트워크(AnnotationHub RPC)로 전송하는 브리지.
-/// 
-/// 변경점:
-/// - NetBeginStroke가 "할당된 strokeId"를 반환하도록 수정.
-///   - OverlayAnnotatorController가 로컬 스트로크 키를 만들 때 이 값을 사용.
-/// 
-/// 참고:
-/// - 이 브리지는 "내가 그리고 있는 스트로크는 1개"라는 가정이 있다.
-///   - 로컬 입력은 동시에 2개 스트로크를 그릴 일이 없으므로 문제 없다.
-/// - 동시 사용자 처리는 AnnotationHub에서 (Source, strokeId)로 분리해서 해결한다.
+/// 로컬 입력(마우스/펜/터치)을 네트워크 드로잉 이벤트로 변환하여 AnnotationHub로 전달하는 브릿지.
+///
+/// ============================
+/// 왜 Hub 참조를 인스펙터로 들고 있으면 안 되나?
+/// ============================
+/// Shared Mode에서 마스터가 나가고 오브젝트 권한/상태가 바뀌는 과정에서,
+/// "SerializeField로 박아둔 Hub 참조"는 Missing으로 깨지는 케이스가 실제로 자주 나옵니다.
+/// (특히 Hub를 Spawn 방식으로 운용하면 더 심각)
+///
+/// 그래서 브릿지는:
+/// - hub를 SerializeField로 고정하지 않고
+/// - AnnotationHub.Instance를 통해 항상 최신 Hub를 바라보게 합니다.
+///
+/// ============================
+/// Batching / Chunking
+/// ============================
+/// 포인트는 매우 자주 발생하므로:
+/// - 일정 시간(sendInterval)마다 묶어서 전송(Batching)
+/// - RPC 1회당 최대 포인트 개수(maxPointsPerRpc)를 제한(Chunking)
+///
+/// 추가로, 너무 촘촘한 포인트는 네트워크 낭비가 되므로
+/// minDistanceNorm로 거리 필터링을 합니다.
 /// </summary>
 public class AnnotationNetBridge : MonoBehaviour
 {
-    /// <summary>
-    /// 네트워크 허브(NetworkBehaviour).
-    /// - 런타임에 AnnotationHub.Instance로도 찾아올 수 있음.
-    /// </summary>
-    [SerializeField] private AnnotationHub hub;
-
     [Header("Batching")]
 
-    /// <summary>포인트 전송 주기(초)</summary>
+    /// <summary>포인트 전송 주기(초). 작을수록 더 실시간이지만 트래픽 증가.</summary>
     [SerializeField] private float sendInterval = 0.05f;
 
-    /// <summary>RPC 1회에 담을 최대 포인트 수</summary>
+    /// <summary>RPC 1회당 최대 포인트 개수. Fusion RPC 페이로드 제한 방어용.</summary>
     [SerializeField] private int maxPointsPerRpc = 64;
 
-    /// <summary>정규화 좌표 기준 최소 거리(너무 촘촘한 포인트 제거)</summary>
+    /// <summary>정규화 좌표 기준 최소 거리. 너무 촘촘한 포인트 전송 방지.</summary>
     [SerializeField] private float minDistanceNorm = 0.002f;
 
-    /// <summary>허브 준비 여부</summary>
+    /// <summary>현재 사용할 Hub(런타임에 자동으로 잡힘)</summary>
+    private AnnotationHub hub;
+
+    /// <summary>Hub 준비 여부</summary>
     private bool netReady;
 
-    /// <summary>허브 준비를 기다리는 코루틴</summary>
+    /// <summary>Hub를 계속 찾아 붙잡는 코루틴</summary>
     private Coroutine ensureRoutine;
 
-    /// <summary>로컬 스트로크 시퀀스(전송용 strokeId)</summary>
+    /// <summary>로컬에서 생성하는 strokeId 시퀀스 (각 로컬 플레이어 기준 1,2,3...)</summary>
     private int strokeSeq = 1;
 
-    /// <summary>라벨 시퀀스</summary>
+    /// <summary>라벨 ID 시퀀스</summary>
     private int labelSeq = 1;
 
-    /// <summary>현재 전송 중인 스트로크ID</summary>
+    /// <summary>현재 그리고 있는 스트로크 ID</summary>
     private int currentStrokeId;
 
-    /// <summary>현재 스트로크가 열려 있는지</summary>
+    /// <summary>현재 스트로크가 열려 있는지(그리는 중인지)</summary>
     private bool strokeOpen;
 
-    /// <summary>전송 대기 중인 포인트 목록</summary>
+    /// <summary>전송 대기 중인 포인트 버퍼(정규화 0~1)</summary>
     private readonly List<Vector2> pending = new();
 
-    /// <summary>마지막으로 수용한 포인트(거리 필터링용)</summary>
+    /// <summary>거리 필터링을 위한 마지막 채택 포인트</summary>
     private Vector2 lastAccepted;
 
-    /// <summary>lastAccepted 유효 여부</summary>
+    /// <summary>lastAccepted가 유효한지</summary>
     private bool hasLast;
 
-    /// <summary>다음 전송 가능한 시간</summary>
+    /// <summary>다음 전송 가능한 시각</summary>
     private float nextSendTime;
-
-    private void Awake()
-    {
-        if (ensureRoutine == null)
-            ensureRoutine = StartCoroutine(EnsureHubReady());
-    }
 
     private void OnEnable()
     {
         if (ensureRoutine == null)
-            ensureRoutine = StartCoroutine(EnsureHubReady());
+            ensureRoutine = StartCoroutine(EnsureHubReadyLoop());
     }
 
     private void OnDisable()
@@ -84,44 +87,63 @@ public class AnnotationNetBridge : MonoBehaviour
         }
 
         netReady = false;
+        hub = null;
     }
 
     /// <summary>
-    /// AnnotationHub가 생성(Spawned)되어 네트워크 준비 상태가 될 때까지 대기.
+    /// Hub를 "계속" 찾고, 준비되면 netReady를 true로 만듭니다.
+    ///
+    /// 왜 루프인가?
+    /// - 씬 로드 타이밍/네트워크 시작 타이밍에 따라 Spawned 순서가 달라질 수 있음
+    /// - 마스터 변경/재접속 같은 이벤트로 Instance가 잠깐 null이 될 수 있음
+    ///
+    /// 따라서 "한 번 찾고 끝"이 아니라, 유효해질 때까지 반복하는 방식이 안전합니다.
     /// </summary>
-    private IEnumerator EnsureHubReady()
+    private IEnumerator EnsureHubReadyLoop()
     {
-        // 1) hub 참조 확보
-        while (hub == null)
+        while (true)
         {
-            hub = AnnotationHub.Instance;
+            if (hub == null)
+                hub = AnnotationHub.Instance;
+
+            if (hub != null && hub.IsNetworkReady)
+            {
+                if (!netReady)
+                {
+                    netReady = true;
+                    Debug.Log("[NetBridge] Hub is network-ready.");
+                }
+            }
+            else
+            {
+                // 준비가 깨진 경우(Instance null 등)
+                if (netReady)
+                {
+                    netReady = false;
+                    Debug.LogWarning("[NetBridge] Hub is not ready (lost reference or not spawned).");
+                }
+            }
+
             yield return null;
         }
-
-        // 2) 네트워크 초기화 완료까지 대기
-        while (!hub.IsNetworkReady)
-            yield return null;
-
-        netReady = true;
-        Debug.Log("[NetBridge] Hub is network-ready.");
-
-        ensureRoutine = null;
     }
 
     /// <summary>
-    /// 전송 가능한 상태인지 검사.
+    /// 지금 네트워크로 전송해도 되는지.
     /// </summary>
     private bool CanSend()
         => netReady && hub != null && hub.IsNetworkReady;
 
     /// <summary>
     /// 네트워크 스트로크 시작.
-    /// 
-    /// 반환값:
-    /// - 전송 성공: 할당된 strokeId(1,2,3...)
-    /// - 전송 실패(허브 준비 전): -1
-    /// 
-    /// Controller는 이 반환값을 로컬 스트로크 키에 사용한다.
+    ///
+    /// 반환:
+    /// - 성공: 할당된 strokeId (1,2,3...)
+    /// - 실패: -1
+    ///
+    /// 주의:
+    /// - strokeId는 "로컬 플레이어 기준" 증가값입니다.
+    /// - 네트워크에서 유일성은 (author, strokeId) 조합으로 보장됩니다(AnnotationHub에서 처리).
     /// </summary>
     public int NetBeginStroke(Color color, float widthPx, Vector2 firstNorm)
     {
@@ -141,7 +163,7 @@ public class AnnotationNetBridge : MonoBehaviour
         pending.Clear();
         hasLast = false;
 
-        // 첫 포인트 수용 및 즉시 플러시(지연 없이 시작점을 공유)
+        // 첫 포인트는 즉시 전송(사용자 체감 개선)
         AcceptPoint(firstNorm);
         Flush(force: true);
 
@@ -149,7 +171,7 @@ public class AnnotationNetBridge : MonoBehaviour
     }
 
     /// <summary>
-    /// 포인트 추가 전송(배치).
+    /// 포인트 추가(그리는 중).
     /// </summary>
     public void NetAddPoint(Vector2 norm)
     {
@@ -161,8 +183,8 @@ public class AnnotationNetBridge : MonoBehaviour
     }
 
     /// <summary>
-    /// 스트로크 종료 전송.
-    /// - 남은 포인트를 강제 플러시 후 End 전송.
+    /// 스트로크 종료.
+    /// - 남은 포인트를 강제로 Flush하고 End를 보냅니다.
     /// </summary>
     public void NetEndStroke()
     {
@@ -178,7 +200,7 @@ public class AnnotationNetBridge : MonoBehaviour
     }
 
     /// <summary>
-    /// 텍스트 추가 전송.
+    /// 라벨 추가.
     /// </summary>
     public void NetAddLabel(Vector2 posNorm, string text)
     {
@@ -187,7 +209,8 @@ public class AnnotationNetBridge : MonoBehaviour
     }
 
     /// <summary>
-    /// 전체 클리어 전송.
+    /// 전체 Clear.
+    /// - 모든 클라이언트에 Clear + 히스토리 초기화
     /// </summary>
     public void NetClear()
     {
@@ -196,7 +219,7 @@ public class AnnotationNetBridge : MonoBehaviour
     }
 
     /// <summary>
-    /// 거리 필터링 적용 후 pending에 포인트 추가.
+    /// 거리 필터링 후 pending에 포인트 추가.
     /// </summary>
     private void AcceptPoint(Vector2 norm)
     {
@@ -209,7 +232,10 @@ public class AnnotationNetBridge : MonoBehaviour
     }
 
     /// <summary>
-    /// pending 포인트를 maxPointsPerRpc 단위로 쪼개 RPC 전송.
+    /// pending 포인트들을 전송합니다.
+    ///
+    /// - force=false면 sendInterval에 맞춰 주기적으로만 전송(Batching)
+    /// - maxPointsPerRpc 단위로 나눠서 전송(Chunking)
     /// </summary>
     private void Flush(bool force)
     {
@@ -221,7 +247,8 @@ public class AnnotationNetBridge : MonoBehaviour
         StrokeNetEncoder.ForEachChunk(pending, maxPointsPerRpc, (start, count) =>
         {
             var temp = new Vector2[count];
-            for (int i = 0; i < count; i++) temp[i] = pending[start + i];
+            for (int i = 0; i < count; i++)
+                temp[i] = pending[start + i];
 
             var packed = StrokeNetEncoder.PackPoints(temp);
             hub.SendAddPointsChunk(currentStrokeId, packed);
