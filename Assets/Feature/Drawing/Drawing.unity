@@ -487,7 +487,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b524b70333664d14da76a8a92f5363f7, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  sessionName: AnnotationRoom
+  runner: {fileID: 0}
+  hubPrefab:
+    RawGuidValue: 00000000000000000000000000000000
+  roomName: OverlayRoom
 --- !u!114 &755352529
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -514,6 +517,7 @@ GameObject:
   - component: {fileID: 832329765}
   - component: {fileID: 832329766}
   - component: {fileID: 832329767}
+  - component: {fileID: 832329768}
   m_Layer: 0
   m_Name: Controller
   m_TagString: Untagged
@@ -548,14 +552,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b360a0b5f98fb34408834d935904d277, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  mode: 1
-  texture2DAnnotator: {fileID: 0}
-  uiToolkitAnnotator: {fileID: 1905231742}
-  strokeColor: {r: 1, g: 0, b: 0, a: 1}
-  strokeWidthPx: 4
-  minDistancePx: 3
-  sampleText: "\uC5EC\uAE30 \uD655\uC778"
-  net: {fileID: 832329767}
+  annotator: {fileID: 1905231742}
+  netBridge: {fileID: 832329767}
+  widthPx: 4
 --- !u!114 &832329767
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -569,8 +568,27 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   sendInterval: 0.05
-  maxPointsPerRpc: 64
+  maxBytesPerRpc: 900
   minDistanceNorm: 0.002
+--- !u!114 &832329768
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 832329764}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 19102, guid: 0000000000000000e000000000000000, type: 0}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_PanelSettings: {fileID: 11400000, guid: 618a6aa098def7146855e48ee5c38cf8, type: 2}
+  m_ParentUI: {fileID: 0}
+  sourceAsset: {fileID: 0}
+  m_SortingOrder: 0
+  m_WorldSpaceSizeMode: 1
+  m_WorldSpaceWidth: 1920
+  m_WorldSpaceHeight: 1080
 --- !u!1 &844779845
 GameObject:
   m_ObjectHideFlags: 0
@@ -736,34 +754,80 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fa1f6513355de714b9be1178d0d1a4da, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  uiDocument: {fileID: 1905231740}
-  attachToRootName: 
---- !u!114 &387963714102909410
+  defaultWidthPx: 4
+--- !u!114 &1599498463468856762
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1654269774381883222}
+  m_GameObject: {fileID: 6085598353216762036}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c43a3176e51d5a14eb1f7af87e242817, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  gapTimeoutSec: 0.35
+  maxBufferedEventsPerAuthor: 256
+--- !u!114 &2972071114924755741
+MonoBehaviour:
+  m_ObjectHideFlags: 59
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6085598353216762036}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 1541381998, guid: e725a070cec140c4caffb81624c8c787, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  Guid:
+    RawGuidValue: de7ae1b10b7076646a583ba0c5de9e59
+--- !u!1 &6085598353216762036
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 9093536517473167493}
+  - component: {fileID: 6221946011598061976}
+  - component: {fileID: 1599498463468856762}
+  - component: {fileID: 2972071114924755741}
+  m_Layer: 0
+  m_Name: AnnotationHub
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &6221946011598061976
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6085598353216762036}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: -1552182283, guid: e725a070cec140c4caffb81624c8c787, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  SortKey: 3970499468
+  SortKey: 2334528570
   ObjectInterest: 1
   Flags: 1
   NestedObjects: []
   NetworkedBehaviours:
-  - {fileID: 1697528308420672389}
+  - {fileID: 1599498463468856762}
   ForceRemoteRenderTimeframe: 0
---- !u!4 &633316464991139062
+--- !u!4 &9093536517473167493
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1654269774381883222}
+  m_GameObject: {fileID: 6085598353216762036}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
@@ -772,36 +836,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &1654269774381883222
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 633316464991139062}
-  - component: {fileID: 387963714102909410}
-  - component: {fileID: 1697528308420672389}
-  m_Layer: 0
-  m_Name: AnnotationHub
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &1697528308420672389
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1654269774381883222}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: c43a3176e51d5a14eb1f7af87e242817, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
@@ -814,5 +848,5 @@ SceneRoots:
   - {fileID: 1593086934}
   - {fileID: 755352527}
   - {fileID: 832329765}
-  - {fileID: 633316464991139062}
   - {fileID: 844779847}
+  - {fileID: 9093536517473167493}

@@ -1,164 +1,91 @@
-using System.Collections.Generic;
+ï»¿using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UIElements;
 
 /// <summary>
-/// UI Toolkit ±â¹İ "º¤ÅÍ µå·ÎÀ×" VisualElement.
-///
-/// ±âÁ¸ µ¿½Ã µå·ÎÀ× ¹®Á¦ÀÇ ÇÙ½É ¿øÀÎ:
-/// - "ÇöÀç ½ºÆ®·ÎÅ© 1°³"¸¸ °®°í AddPoint¸¦ ÇÏ¸é
-/// - ¼­·Î ´Ù¸¥ »ç¿ëÀÚ/¼­·Î ´Ù¸¥ ½ºÆ®·ÎÅ©ÀÇ Æ÷ÀÎÆ®°¡ µÚ¼¯¿©¼­
-///   ¼±ÀÌ ÀÌ¾î ºÙ´Â ¹®Á¦°¡ ¹ß»ıÇÑ´Ù.
-///
-/// ÇØ°á:
-/// - OverlayStrokeKey(authorId, strokeId)·Î ½ºÆ®·ÎÅ©¸¦ ºĞ¸® °ü¸®ÇÑ´Ù.
-/// - activeStrokeIndex[key] = strokes ¸®½ºÆ® ÀÎµ¦½º¸¦ ÀúÀå
-/// - AddPoint´Â "¸¶Áö¸· ½ºÆ®·ÎÅ©"°¡ ¾Æ´Ï¶ó "ÇØ´ç keyÀÇ ½ºÆ®·ÎÅ©"¿¡ Æ÷ÀÎÆ®¸¦ ³Ö´Â´Ù.
-///
-/// ÁÂÇ¥°è(Áß¿ä):
-/// - UIToolkitOverlayAnnotator.TryScreenToNormalized¿¡¼­ v¸¦ µÚÁı¾î v=1-localY/h·Î ¸¸µé¾ú´Ù.
-/// - µû¶ó¼­ ¿©±â¼­ ·»´õ¸µ ÇÒ ¶§´Â ´Ù½Ã yPx = (1 - normY) * h·Î ÇÈ¼¿ Y¸¦ ±¸¼ºÇØ¾ß
-///   "Å¬¸¯ÇÑ À§Ä¡"¿Í "±×·ÁÁö´Â À§Ä¡"°¡ ÀÏÄ¡ÇÑ´Ù.
+/// Painter2D ê¸°ë°˜ ë²¡í„° ë“œë¡œì‰ VisualElement.
+/// 
+/// ì„±ëŠ¥ í¬ì¸íŠ¸:
+/// - AddPointsë¡œ ì—¬ëŸ¬ í¬ì¸íŠ¸ë¥¼ í•œ ë²ˆì— ë„£ê¸°(í˜¸ì¶œ ìˆ˜ ê°ì†Œ)
+/// - ìŠ¤ëƒ…ìƒ· ì¬ìƒ ì‹œ BeginBulk/EndBulkë¡œ MarkDirtyRepaintë¥¼ ë¬¶ê¸°(ë¦¬í˜ì¸íŠ¸ í­ë°œ ë°©ì§€)
 /// </summary>
-public class VectorDrawingElement : VisualElement
+public class VectorDrawingElementOptimized : VisualElement
 {
-    /// <summary>
-    /// ·»´õ¸µÇÒ ½ºÆ®·ÎÅ© ¸ñ·Ï.
-    /// - Stroke´Â structÀÌÁö¸¸ pointsNorm(List)´Â ÂüÁ¶ Å¸ÀÔÀÌ¶ó ³»ºÎ º¯°æ °¡´É.
-    /// - ±×·¡µµ struct ¸®½ºÆ®´Â "²¨³»¼­ ¼öÁ¤ ÈÄ ´Ù½Ã ³Ö±â" ÆĞÅÏÀÌ ¾ÈÀüÇÏ´Ù.
-    /// </summary>
-    private readonly List<Stroke> strokes = new();
-
-    /// <summary>
-    /// ÇöÀç ÁøÇà ÁßÀÎ ½ºÆ®·ÎÅ©¸¦ ºü¸£°Ô Ã£±â À§ÇÑ ¸Ê.
-    /// - key -> strokes ÀÎµ¦½º
-    /// - µ¿½Ã ÀÔ·ÂÀÌ¸é key°¡ ¿©·¯ °³ µ¿½Ã¿¡ Á¸ÀçÇÒ ¼ö ÀÖ´Ù.
-    /// </summary>
-    private readonly Dictionary<OverlayStrokeKey, int> activeStrokeIndex = new();
-
-    /// <summary>
-    /// ½ºÆ®·ÎÅ© µ¥ÀÌÅÍ.
-    /// - color/width´Â ·»´õ¸µ ½ºÅ¸ÀÏ
-    /// - pointsNormÀº (0~1) Á¤±ÔÈ­ ÁÂÇ¥ ¸ñ·Ï
-    /// </summary>
     private struct Stroke
     {
-        public Color color;
+        public Color32 color;
         public float widthPx;
-        public List<Vector2> pointsNorm;
+        public List<Vector2> pointsNorm; // (0..1), yëŠ” "top=1"
     }
 
-    public VectorDrawingElement()
+    private readonly List<Stroke> _strokes = new(256);
+    private readonly Dictionary<OverlayStrokeKey, int> _activeIndex = new(256);
+
+    private int _bulkDepth;
+
+    public VectorDrawingElementOptimized()
     {
-        // È­¸é ÀüÃ¼¸¦ µ¤´Â ¿À¹ö·¹ÀÌÃ³·³ ¾²±â À§ÇØ Absolute + Stretch
         style.position = Position.Absolute;
         style.left = 0;
         style.top = 0;
         style.right = 0;
         style.bottom = 0;
 
-        // ÀÔ·Â ÀÌº¥Æ®´Â Åë°ú(Å¬¸¯/µå·¡±×´Â Controller°¡ Ã³¸®)
         pickingMode = PickingMode.Ignore;
 
-        // UI ToolkitÀÌ ·»´õ¸µ ÇÒ ¶§ È£ÃâÇÏ´Â Äİ¹é
         generateVisualContent += OnGenerate;
-
-        // ÇĞ½À¿ë: ¿À¹ö·¹ÀÌ ¿µ¿ªÀÌ º¸ÀÌ°Ô ¾àÇÑ ¹è°æ
-        style.backgroundColor = new Color(0, 0, 0, 0.05f);
     }
 
-    /// <summary>
-    /// Æ¯Á¤ key(authorId, strokeId)ÀÇ ½ºÆ®·ÎÅ© ½ÃÀÛ.
-    ///
-    /// ¼³°è °áÁ¤:
-    /// - °°Àº key·Î BeginStroke°¡ ´Ù½Ã È£ÃâµÇ¸é "»õ ½ºÆ®·ÎÅ©¸¦ Ãß°¡"ÇÑ´Ù.
-    ///   (ÀÌÀü °ÍÀ» µ¤¾î¾²Áö ¾Ê´Â´Ù)
-    /// - ³×Æ®¿öÅ© Áö¿¬/ÀçÀü¼Û È¯°æ¿¡¼­´Â °°Àº key°¡ Áßº¹µÉ ¼ö ÀÖ´Âµ¥,
-    ///   ÇĞ½À¿ë ±¸Çö¿¡¼­´Â ´Ü¼øÇÏ°Ô "»õ·Î ½ÃÀÛ"À¸·Î Ã³¸®ÇÑ´Ù.
-    ///
-    /// ½Ç¹«ÀûÀ¸·Î ´õ ¾ö°İÈ÷ ÇÏ·Á¸é:
-    /// - °°Àº key°¡ activeÀÏ ¶© ¹«½ÃÇÏ°Å³ª
-    /// - ±âÁ¸ ½ºÆ®·ÎÅ©¸¦ ¸®¼ÂÇÏ´Â Á¤Ã¥À» ³ÖÀ» ¼ö ÀÖ´Ù.
-    /// </summary>
-    public void BeginStroke(OverlayStrokeKey key, Color color, float widthPx)
+    public void BeginBulk() => _bulkDepth++;
+
+    public void EndBulk()
     {
+        _bulkDepth = Mathf.Max(0, _bulkDepth - 1);
+        if (_bulkDepth == 0)
+            MarkDirtyRepaint();
+    }
+
+    public void BeginStroke(OverlayStrokeKey key, Color32 color, float widthPx)
+    {
+        Debug.Log("Begin");
         var s = new Stroke
         {
             color = color,
             widthPx = widthPx,
-            pointsNorm = new List<Vector2>(128)
+            pointsNorm = new List<Vector2>(256)
         };
 
-        strokes.Add(s);
-        activeStrokeIndex[key] = strokes.Count - 1;
+        _strokes.Add(s);
+        _activeIndex[key] = _strokes.Count - 1;
 
-        MarkDirtyRepaint();
+        DirtyIfNotBulk();
     }
 
-    /// <summary>
-    /// Æ¯Á¤ key ½ºÆ®·ÎÅ©¿¡ Æ÷ÀÎÆ® Ãß°¡.
-    ///
-    /// °¡Àå Áß¿äÇÑ ºÎºĞ:
-    /// - "¸¶Áö¸· ½ºÆ®·ÎÅ©"¿¡ ³ÖÁö ¾Ê´Â´Ù.
-    /// - activeStrokeIndex[key]·Î Á¤È®È÷ ÇØ´ç ½ºÆ®·ÎÅ©¸¦ Ã£¾Æ ³Ö´Â´Ù.
-    /// </summary>
-    public void AddPoint(OverlayStrokeKey key, Vector2 norm)
+    public void AddPoints(OverlayStrokeKey key, IReadOnlyList<Vector2> normPoints)
     {
-        if (!activeStrokeIndex.TryGetValue(key, out int index))
-            return;
+        if (!_activeIndex.TryGetValue(key, out int idx)) return;
+        if (idx < 0 || idx >= _strokes.Count) return;
 
-        if (index < 0 || index >= strokes.Count)
-            return;
+        var s = _strokes[idx];
+        s.pointsNorm.AddRange(normPoints);
+        _strokes[idx] = s;
 
-        // struct ¸®½ºÆ®ÀÌ¹Ç·Î ²¨³»¼­ ¼öÁ¤ ÈÄ ´Ù½Ã ³Ö´Â´Ù.
-        var s = strokes[index];
-        s.pointsNorm.Add(norm);
-        strokes[index] = s;
-
-        MarkDirtyRepaint();
+        DirtyIfNotBulk();
     }
 
-    /// <summary>
-    /// Æ¯Á¤ key ½ºÆ®·ÎÅ© Á¾·á.
-    /// - strokes µ¥ÀÌÅÍ´Â ³²°Ü¼­ °è¼Ó ·»´õ¸µµÊ(±×·ÁÁø °á°ú À¯Áö)
-    /// - activeStrokeIndex¿¡¼­¸¸ Á¦°ÅÇØ¼­ ´õ ÀÌ»ó Æ÷ÀÎÆ®°¡ ºÙÁö ¾Ê°Ô ÇÑ´Ù.
-    /// </summary>
     public void EndStroke(OverlayStrokeKey key)
     {
-        activeStrokeIndex.Remove(key);
-        MarkDirtyRepaint();
+        _activeIndex.Remove(key);
+        DirtyIfNotBulk();
     }
 
-    /// <summary>
-    /// ÀüÃ¼ Á¦°Å(½ºÆ®·ÎÅ© + ÅØ½ºÆ® ¶óº§).
-    /// - ³×Æ®¿öÅ© Clear°¡ ¿À¸é ÀÌ ÇÔ¼ö°¡ È£ÃâµÇ¾î¾ß ÇÑ´Ù.
-    /// </summary>
-    public void ClearAll()
-    {
-        strokes.Clear();
-        activeStrokeIndex.Clear();
-        ClearTextLabels();
-        MarkDirtyRepaint();
-    }
-
-    /// <summary>
-    /// Á¤±ÔÈ­ À§Ä¡¿¡ ÅØ½ºÆ® ¶óº§ Ãß°¡.
-    ///
-    /// ÁÂÇ¥°è ÁÖÀÇ:
-    /// - norm.y´Â UIToolkitOverlayAnnotator¿¡¼­ v¸¦ µÚÁıÀº °ª(= À§ÂÊÀÌ 1, ¾Æ·¡ÂÊÀÌ 0)
-    /// - UI ToolkitÀÇ topÀº "À§¿¡¼­ºÎÅÍ ³»·Á¿À´Â °ª"ÀÌ¹Ç·Î,
-    ///   topPercent = (1 - norm.y) * 100 ÀÌ ÀÏ°üµÈ´Ù.
-    /// </summary>
-    public void AddLabel(Vector2 norm, string text)
+    public void AddLabel(int labelId, Vector2 norm, string text)
     {
         var label = new Label(text);
-
         label.style.position = Position.Absolute;
 
-        // x´Â ±×´ë·Î percent
+        // norm.yëŠ” top=1ì´ë¯€ë¡œ, UIì˜ top(0=ìœ„)ë¡œ ë³€í™˜í•˜ë ¤ë©´ (1-norm.y)
         label.style.left = Length.Percent(norm.x * 100f);
-
-        // y´Â µÚÁı¾î¼­ percent
         label.style.top = Length.Percent(norm.y * 100f);
 
         label.style.color = Color.white;
@@ -167,12 +94,15 @@ public class VectorDrawingElement : VisualElement
         Add(label);
     }
 
-    /// <summary>
-    /// ÅØ½ºÆ® ¶óº§¸¸ Á¦°Å.
-    /// - ¶óº§Àº child VisualElement·Î ºÙ¾îÀÖ°í,
-    ///   ½ºÆ®·ÎÅ©´Â OnGenerate¿¡¼­ painter2D·Î ±×·ÁÁö¹Ç·Î º°°³´Ù.
-    /// </summary>
-    private void ClearTextLabels()
+    public void ClearAll()
+    {
+        _strokes.Clear();
+        _activeIndex.Clear();
+        ClearLabels();
+        MarkDirtyRepaint();
+    }
+
+    private void ClearLabels()
     {
         for (int i = childCount - 1; i >= 0; i--)
         {
@@ -181,58 +111,42 @@ public class VectorDrawingElement : VisualElement
         }
     }
 
-    /// <summary>
-    /// UI ToolkitÀÌ ÀÌ ¿ä¼Ò¸¦ ±×¸± ¶§ È£Ãâ.
-    /// strokes¿¡ ÀÖ´Â ¸ğµç ½ºÆ®·ÎÅ©¸¦ painter2D·Î ·»´õ¸µÇÑ´Ù.
-    ///
-    /// painter2D ÁÂÇ¥°è:
-    /// - (0,0)Àº ¿ä¼ÒÀÇ ÁÂ»ó´Ü
-    /// - x´Â ¿À¸¥ÂÊÀ¸·Î Áõ°¡
-    /// - y´Â ¾Æ·¡·Î Áõ°¡
-    ///
-    /// norm ÁÂÇ¥°è(ÇöÀç ÇÁ·ÎÁ§Æ® ±ÔÄ¢):
-    /// - x: 0(left) ~ 1(right)
-    /// - y: 0(bottom) ~ 1(top)  (TryScreenToNormalized¿¡¼­ µÚÁı¾ú±â ¶§¹®)
-    ///
-    /// µû¶ó¼­:
-    /// - xPx = norm.x * w
-    /// - yPx = (1 - norm.y) * h
-    /// ·Î º¯È¯ÇØ¾ß "ÀÔ·Â°ú ·»´õ°¡ ÀÏÄ¡"ÇÑ´Ù.
-    /// </summary>
+    private void DirtyIfNotBulk()
+    {
+        if (_bulkDepth == 0)
+            MarkDirtyRepaint();
+    }
+
     private void OnGenerate(MeshGenerationContext ctx)
     {
         float w = resolvedStyle.width;
         float h = resolvedStyle.height;
-
-        if (w <= 1f || h <= 1f)
-            return;
+        if (w <= 1f || h <= 1f) return;
 
         var painter = ctx.painter2D;
         painter.lineCap = LineCap.Round;
         painter.lineJoin = LineJoin.Round;
 
-        foreach (var s in strokes)
+        for (int sIdx = 0; sIdx < _strokes.Count; sIdx++)
         {
-            if (s.pointsNorm == null || s.pointsNorm.Count < 2)
-                continue;
+            var s = _strokes[sIdx];
+            if (s.pointsNorm == null || s.pointsNorm.Count < 2) continue;
 
             painter.strokeColor = s.color;
             painter.lineWidth = s.widthPx;
-
             painter.BeginPath();
 
-            Vector2 P(int i)
+            Vector2 ToPx(Vector2 n)
             {
-                var n = s.pointsNorm[i];
-                return new Vector2(n.x * w, n.y * h);
+                // norm.y(top=1) -> painter ì¢Œí‘œ(top=0)ë¡œ: (1-n.y)
+                float x = n.x * w;
+                float y = n.y * h;
+                return new Vector2(x, y);
             }
 
-            painter.MoveTo(P(0));
-
+            painter.MoveTo(ToPx(s.pointsNorm[0]));
             for (int i = 1; i < s.pointsNorm.Count; i++)
-            {
-                painter.LineTo(P(i));
-            }
+                painter.LineTo(ToPx(s.pointsNorm[i]));
 
             painter.Stroke();
         }

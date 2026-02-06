@@ -1,76 +1,65 @@
-using System.Collections;
+ï»¿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// ·ÎÄÃ ÀÔ·Â(¸¶¿ì½º/Ææ/ÅÍÄ¡)À» ³×Æ®¿öÅ© µå·ÎÀ× ÀÌº¥Æ®·Î º¯È¯ÇÏ¿© AnnotationHub·Î Àü´ŞÇÏ´Â ºê¸´Áö.
-///
-/// ============================
-/// ¿Ö Hub ÂüÁ¶¸¦ ÀÎ½ºÆåÅÍ·Î µé°í ÀÖÀ¸¸é ¾È µÇ³ª?
-/// ============================
-/// Shared Mode¿¡¼­ ¸¶½ºÅÍ°¡ ³ª°¡°í ¿ÀºêÁ§Æ® ±ÇÇÑ/»óÅÂ°¡ ¹Ù²î´Â °úÁ¤¿¡¼­,
-/// "SerializeField·Î ¹Ú¾ÆµĞ Hub ÂüÁ¶"´Â MissingÀ¸·Î ±úÁö´Â ÄÉÀÌ½º°¡ ½ÇÁ¦·Î ÀÚÁÖ ³ª¿É´Ï´Ù.
-/// (Æ¯È÷ Hub¸¦ Spawn ¹æ½ÄÀ¸·Î ¿î¿ëÇÏ¸é ´õ ½É°¢)
-///
-/// ±×·¡¼­ ºê¸´Áö´Â:
-/// - hub¸¦ SerializeField·Î °íÁ¤ÇÏÁö ¾Ê°í
-/// - AnnotationHub.Instance¸¦ ÅëÇØ Ç×»ó ÃÖ½Å Hub¸¦ ¹Ù¶óº¸°Ô ÇÕ´Ï´Ù.
-///
-/// ============================
-/// Batching / Chunking
-/// ============================
-/// Æ÷ÀÎÆ®´Â ¸Å¿ì ÀÚÁÖ ¹ß»ıÇÏ¹Ç·Î:
-/// - ÀÏÁ¤ ½Ã°£(sendInterval)¸¶´Ù ¹­¾î¼­ Àü¼Û(Batching)
-/// - RPC 1È¸´ç ÃÖ´ë Æ÷ÀÎÆ® °³¼ö(maxPointsPerRpc)¸¦ Á¦ÇÑ(Chunking)
-///
-/// Ãß°¡·Î, ³Ê¹« ÃÎÃÎÇÑ Æ÷ÀÎÆ®´Â ³×Æ®¿öÅ© ³¶ºñ°¡ µÇ¹Ç·Î
-/// minDistanceNorm·Î °Å¸® ÇÊÅÍ¸µÀ» ÇÕ´Ï´Ù.
+/// ë¡œì»¬ ì…ë ¥ì„ ë„¤íŠ¸ì›Œí¬ ì´ë²¤íŠ¸ë¡œ ë³€í™˜í•˜ëŠ” ë¸Œë¦¬ì§€.
+/// 
+/// ì—¬ê¸°ì„œ í•˜ëŠ” ì¼:
+/// - ìŠ¤íŠ¸ë¡œí¬ ì‹œì‘/í¬ì¸íŠ¸/ì¢…ë£Œ/ë¼ë²¨/í´ë¦¬ì–´ë¥¼ "Hub.SendXXX"ë¡œ ì „ë‹¬
+/// - í¬ì¸íŠ¸ë¥¼ ë°°ì¹˜ë¡œ ë¬¶ì–´ì„œ ì „ì†¡ (sendInterval)
+/// - í¬ì¸íŠ¸ ë‹¤ìš´ìƒ˜í”Œë§(minDistanceNorm)
+/// - payload í¬ê¸° ì œí•œì„ ê³ ë ¤í•´ ì²­í‚¹(maxBytesPerRpc)
+/// - ê·¸ë¦¬ê³  ì´ë²ˆ ìš”ì²­ì˜ í•µì‹¬: "seq ì‹œìŠ¤í…œ" ìƒì„±/ì „ë‹¬
+/// 
+/// seq ì‹œìŠ¤í…œ:
+/// - ë¸Œë¦¬ì§€ëŠ” "ë‚´ê°€ ë³´ë‚´ëŠ” ì´ë²¤íŠ¸"ë§ˆë‹¤ seqë¥¼ 1ì”© ì¦ê°€ì‹œí‚¨ë‹¤.
+/// - HubëŠ” RPCì— seqë¥¼ í¬í•¨í•´ ë¿Œë¦°ë‹¤.
+/// - ìˆ˜ì‹  ì¸¡ì€ authorIdë³„ lastSeqë¥¼ ì €ì¥í•˜ê³  seqê°€ ì‘ê±°ë‚˜ ê°™ìœ¼ë©´ ë¬´ì‹œí•œë‹¤.
 /// </summary>
-public class AnnotationNetBridge : MonoBehaviour
+public class AnnotationNetBridgeOptimized : MonoBehaviour
 {
-    [Header("Batching")]
-
-    /// <summary>Æ÷ÀÎÆ® Àü¼Û ÁÖ±â(ÃÊ). ÀÛÀ»¼ö·Ï ´õ ½Ç½Ã°£ÀÌÁö¸¸ Æ®·¡ÇÈ Áõ°¡.</summary>
+    [Header("Batching / Chunking")]
     [SerializeField] private float sendInterval = 0.05f;
 
-    /// <summary>RPC 1È¸´ç ÃÖ´ë Æ÷ÀÎÆ® °³¼ö. Fusion RPC ÆäÀÌ·Îµå Á¦ÇÑ ¹æ¾î¿ë.</summary>
-    [SerializeField] private int maxPointsPerRpc = 64;
+    [Tooltip("RPC 1íšŒ payload ì•ˆì „ ì˜ˆì‚°(ë°”ì´íŠ¸). 700~1100 ì •ë„ì—ì„œ í”„ë¡œì íŠ¸ì— ë§ê²Œ íŠœë‹.")]
+    [SerializeField] private int maxBytesPerRpc = 900;
 
-    /// <summary>Á¤±ÔÈ­ ÁÂÇ¥ ±âÁØ ÃÖ¼Ò °Å¸®. ³Ê¹« ÃÎÃÎÇÑ Æ÷ÀÎÆ® Àü¼Û ¹æÁö.</summary>
+    [Tooltip("ë„ˆë¬´ ì´˜ì´˜í•œ í¬ì¸íŠ¸ ì œê±°(ì •ê·œí™” ì¢Œí‘œ ê¸°ì¤€ ê±°ë¦¬).")]
     [SerializeField] private float minDistanceNorm = 0.002f;
 
-    /// <summary>ÇöÀç »ç¿ëÇÒ Hub(·±Å¸ÀÓ¿¡ ÀÚµ¿À¸·Î ÀâÈû)</summary>
-    private AnnotationHub hub;
-
-    /// <summary>Hub ÁØºñ ¿©ºÎ</summary>
+    private AnnotationHubOptimized hub;
     private bool netReady;
-
-    /// <summary>Hub¸¦ °è¼Ó Ã£¾Æ ºÙÀâ´Â ÄÚ·çÆ¾</summary>
     private Coroutine ensureRoutine;
 
-    /// <summary>·ÎÄÃ¿¡¼­ »ı¼ºÇÏ´Â strokeId ½ÃÄö½º (°¢ ·ÎÄÃ ÇÃ·¹ÀÌ¾î ±âÁØ 1,2,3...)</summary>
     private int strokeSeq = 1;
-
-    /// <summary>¶óº§ ID ½ÃÄö½º</summary>
     private int labelSeq = 1;
 
-    /// <summary>ÇöÀç ±×¸®°í ÀÖ´Â ½ºÆ®·ÎÅ© ID</summary>
     private int currentStrokeId;
-
-    /// <summary>ÇöÀç ½ºÆ®·ÎÅ©°¡ ¿­·Á ÀÖ´ÂÁö(±×¸®´Â ÁßÀÎÁö)</summary>
     private bool strokeOpen;
 
-    /// <summary>Àü¼Û ´ë±â ÁßÀÎ Æ÷ÀÎÆ® ¹öÆÛ(Á¤±ÔÈ­ 0~1)</summary>
-    private readonly List<Vector2> pending = new();
-
-    /// <summary>°Å¸® ÇÊÅÍ¸µÀ» À§ÇÑ ¸¶Áö¸· Ã¤ÅÃ Æ÷ÀÎÆ®</summary>
+    // pending points (norm)
+    private readonly List<Vector2> pending = new(256);
     private Vector2 lastAccepted;
-
-    /// <summary>lastAccepted°¡ À¯È¿ÇÑÁö</summary>
     private bool hasLast;
-
-    /// <summary>´ÙÀ½ Àü¼Û °¡´ÉÇÑ ½Ã°¢</summary>
     private float nextSendTime;
+
+    // -------------------- seq ì‹œìŠ¤í…œ(ì†¡ì‹ ì ì¸¡) --------------------
+
+    /// <summary>
+    /// ë‚´ê°€ ë³´ë‚´ëŠ” ë¼ì´ë¸Œ ì´ë²¤íŠ¸ì˜ ì „ì—­ seq ì¹´ìš´í„°.
+    /// 
+    /// ì™œ ì „ì—­ 1ê°œê°€ ì¢‹ì€ê°€?
+    /// - Begin/Points/End/Label/Clearì˜ ìˆœì„œë¥¼ í•œ ì¤„ë¡œ ì„¸ìš¸ ìˆ˜ ìˆë‹¤.
+    /// - "Endê°€ ë¨¼ì € ë„ì°©" ê°™ì€ ì—­ìˆœì´ ì˜¤ë©´ seqë¡œ í•„í„°ë§ ê°€ëŠ¥.
+    /// - êµ¬í˜„ì´ ë‹¨ìˆœí•˜ê³  íš¨ê³¼ê°€ í¬ë‹¤.
+    /// </summary>
+    private uint localEventSeq = 0;
+
+    /// <summary>
+    /// ì´ë²¤íŠ¸ í•˜ë‚˜ë¥¼ ë³´ë‚¼ ë•Œë§ˆë‹¤ ì¦ê°€ì‹œí‚¤ê³ , ê·¸ ê°’ì„ ì´ë²¤íŠ¸ì˜ seqë¡œ ì‚¬ìš©í•œë‹¤.
+    /// </summary>
+    private uint NextSeq() => ++localEventSeq;
 
     private void OnEnable()
     {
@@ -86,84 +75,53 @@ public class AnnotationNetBridge : MonoBehaviour
             ensureRoutine = null;
         }
 
-        netReady = false;
         hub = null;
+        netReady = false;
     }
 
-    /// <summary>
-    /// Hub¸¦ "°è¼Ó" Ã£°í, ÁØºñµÇ¸é netReady¸¦ true·Î ¸¸µì´Ï´Ù.
-    ///
-    /// ¿Ö ·çÇÁÀÎ°¡?
-    /// - ¾À ·Îµå Å¸ÀÌ¹Ö/³×Æ®¿öÅ© ½ÃÀÛ Å¸ÀÌ¹Ö¿¡ µû¶ó Spawned ¼ø¼­°¡ ´Ş¶óÁú ¼ö ÀÖÀ½
-    /// - ¸¶½ºÅÍ º¯°æ/ÀçÁ¢¼Ó °°Àº ÀÌº¥Æ®·Î Instance°¡ Àá±ñ nullÀÌ µÉ ¼ö ÀÖÀ½
-    ///
-    /// µû¶ó¼­ "ÇÑ ¹ø Ã£°í ³¡"ÀÌ ¾Æ´Ï¶ó, À¯È¿ÇØÁú ¶§±îÁö ¹İº¹ÇÏ´Â ¹æ½ÄÀÌ ¾ÈÀüÇÕ´Ï´Ù.
-    /// </summary>
     private IEnumerator EnsureHubReadyLoop()
     {
         while (true)
         {
             if (hub == null)
-                hub = AnnotationHub.Instance;
+                hub = AnnotationHubOptimized.Instance;
 
-            if (hub != null && hub.IsNetworkReady)
+            bool readyNow = hub != null && hub.IsNetworkReady;
+            if (readyNow && !netReady)
             {
-                if (!netReady)
-                {
-                    netReady = true;
-                    Debug.Log("[NetBridge] Hub is network-ready.");
-                }
+                netReady = true;
+                Debug.Log("[NetBridge] Hub ready.");
             }
-            else
+            else if (!readyNow && netReady)
             {
-                // ÁØºñ°¡ ±úÁø °æ¿ì(Instance null µî)
-                if (netReady)
-                {
-                    netReady = false;
-                    Debug.LogWarning("[NetBridge] Hub is not ready (lost reference or not spawned).");
-                }
+                netReady = false;
+                Debug.LogWarning("[NetBridge] Hub not ready.");
             }
 
             yield return null;
         }
     }
 
-    /// <summary>
-    /// Áö±İ ³×Æ®¿öÅ©·Î Àü¼ÛÇØµµ µÇ´ÂÁö.
-    /// </summary>
-    private bool CanSend()
-        => netReady && hub != null && hub.IsNetworkReady;
+    private bool CanSend() => netReady && hub != null && hub.IsNetworkReady;
 
     /// <summary>
-    /// ³×Æ®¿öÅ© ½ºÆ®·ÎÅ© ½ÃÀÛ.
-    ///
-    /// ¹İÈ¯:
-    /// - ¼º°ø: ÇÒ´çµÈ strokeId (1,2,3...)
-    /// - ½ÇÆĞ: -1
-    ///
-    /// ÁÖÀÇ:
-    /// - strokeId´Â "·ÎÄÃ ÇÃ·¹ÀÌ¾î ±âÁØ" Áõ°¡°ªÀÔ´Ï´Ù.
-    /// - ³×Æ®¿öÅ©¿¡¼­ À¯ÀÏ¼ºÀº (author, strokeId) Á¶ÇÕÀ¸·Î º¸ÀåµË´Ï´Ù(AnnotationHub¿¡¼­ Ã³¸®).
+    /// ë„¤íŠ¸ì›Œí¬ ìŠ¤íŠ¸ë¡œí¬ ì‹œì‘.
+    /// - seqë¥¼ ìƒì„±í•´ Begin ì´ë²¤íŠ¸ì— í¬í•¨í•œë‹¤.
     /// </summary>
-    public int NetBeginStroke(Color color, float widthPx, Vector2 firstNorm)
+    public int NetBeginStroke(Color32 color, float widthPx, Vector2 firstNorm)
     {
-        if (!CanSend())
-        {
-            Debug.LogWarning("[NetBridge] Hub not ready yet. Skip sending BeginStroke.");
-            return -1;
-        }
+        if (!CanSend()) return -1;
 
         currentStrokeId = strokeSeq++;
         strokeOpen = true;
 
-        // Begin Àü¼Û
-        hub.SendBeginStroke(currentStrokeId, (Color32)color, widthPx);
-
-        // Æ÷ÀÎÆ® ¹öÆÛ ÃÊ±âÈ­
         pending.Clear();
         hasLast = false;
 
-        // Ã¹ Æ÷ÀÎÆ®´Â Áï½Ã Àü¼Û(»ç¿ëÀÚ Ã¼°¨ °³¼±)
+        // Begin ì´ë²¤íŠ¸ ì†¡ì‹  (seq í¬í•¨)
+        hub.SendBeginStroke(NextSeq(), currentStrokeId, color, widthPx);
+
+        // ì²« í¬ì¸íŠ¸ë„ pendingì— ë„£ê³  ì¦‰ì‹œ Flush(UX/ì •í™•ë„)
         AcceptPoint(firstNorm);
         Flush(force: true);
 
@@ -171,7 +129,7 @@ public class AnnotationNetBridge : MonoBehaviour
     }
 
     /// <summary>
-    /// Æ÷ÀÎÆ® Ãß°¡(±×¸®´Â Áß).
+    /// í¬ì¸íŠ¸ ì¶”ê°€. (ë°°ì¹˜ ì „ì†¡)
     /// </summary>
     public void NetAddPoint(Vector2 norm)
     {
@@ -183,8 +141,8 @@ public class AnnotationNetBridge : MonoBehaviour
     }
 
     /// <summary>
-    /// ½ºÆ®·ÎÅ© Á¾·á.
-    /// - ³²Àº Æ÷ÀÎÆ®¸¦ °­Á¦·Î FlushÇÏ°í End¸¦ º¸³À´Ï´Ù.
+    /// ìŠ¤íŠ¸ë¡œí¬ ì¢…ë£Œ.
+    /// - ë§ˆì§€ë§‰ pending í¬ì¸íŠ¸ë¥¼ ë¨¼ì € Flushí•˜ê³  End ì´ë²¤íŠ¸ ì†¡ì‹ .
     /// </summary>
     public void NetEndStroke()
     {
@@ -192,7 +150,9 @@ public class AnnotationNetBridge : MonoBehaviour
         if (!CanSend()) return;
 
         Flush(force: true);
-        hub.SendEndStroke(currentStrokeId);
+
+        // End ì´ë²¤íŠ¸ ì†¡ì‹  (seq í¬í•¨)
+        hub.SendEndStroke(NextSeq(), currentStrokeId);
 
         strokeOpen = false;
         pending.Clear();
@@ -200,61 +160,99 @@ public class AnnotationNetBridge : MonoBehaviour
     }
 
     /// <summary>
-    /// ¶óº§ Ãß°¡.
+    /// ë¼ë²¨ ì¶”ê°€(í…ŒìŠ¤íŠ¸/ê¸°ëŠ¥ í™•ì¥ìš©).
     /// </summary>
     public void NetAddLabel(Vector2 posNorm, string text)
     {
         if (!CanSend()) return;
-        hub.SendAddLabel(labelSeq++, posNorm, text);
+
+        int labelId = labelSeq++;
+
+        hub.SendAddLabel(NextSeq(), labelId, posNorm, text);
     }
 
     /// <summary>
-    /// ÀüÃ¼ Clear.
-    /// - ¸ğµç Å¬¶óÀÌ¾ğÆ®¿¡ Clear + È÷½ºÅä¸® ÃÊ±âÈ­
+    /// ì „ì²´ í´ë¦¬ì–´.
+    /// - ClearëŠ” ë£¸ ì „ì²´ ìƒíƒœë¥¼ ë°”ê¾¸ë¯€ë¡œ seq í¬í•¨ì´ íŠ¹íˆ ì¤‘ìš”í•˜ë‹¤.
     /// </summary>
-    public void NetClear()
+    public void NetClearAll()
     {
         if (!CanSend()) return;
-        hub.SendClear();
+
+        strokeOpen = false;
+        pending.Clear();
+        hasLast = false;
+
+        hub.SendClearAll(NextSeq());
     }
 
+    // -------------------- í¬ì¸íŠ¸ ë‹¤ìš´ìƒ˜í”Œë§ --------------------
+
     /// <summary>
-    /// °Å¸® ÇÊÅÍ¸µ ÈÄ pending¿¡ Æ÷ÀÎÆ® Ãß°¡.
+    /// í¬ì¸íŠ¸ë¥¼ ë„ˆë¬´ ì´˜ì´˜íˆ ë„£ìœ¼ë©´:
+    /// - ë„¤íŠ¸ì›Œí¬ íŠ¸ë˜í”½ ì¦ê°€
+    /// - ìˆ˜ì‹  ë Œë” ë¹„ìš© ì¦ê°€
+    /// - íˆìŠ¤í† ë¦¬ ë©”ëª¨ë¦¬ ì¦ê°€
+    /// 
+    /// ê·¸ë˜ì„œ ì¼ì • ê±°ë¦¬ ì´í•˜ë©´ í¬ì¸íŠ¸ë¥¼ ë²„ë¦°ë‹¤.
+    /// ì´ ê°’(minDistanceNorm)ì€ í•´ìƒë„/ê°ë„ì— ë§ì¶° ì¡°ì ˆí•œë‹¤.
     /// </summary>
     private void AcceptPoint(Vector2 norm)
     {
-        if (hasLast && (norm - lastAccepted).sqrMagnitude < (minDistanceNorm * minDistanceNorm))
+        if (!hasLast)
+        {
+            pending.Add(norm);
+            lastAccepted = norm;
+            hasLast = true;
+            return;
+        }
+
+        if ((norm - lastAccepted).sqrMagnitude < (minDistanceNorm * minDistanceNorm))
             return;
 
         pending.Add(norm);
         lastAccepted = norm;
-        hasLast = true;
     }
 
+    // -------------------- ë°°ì¹˜/ì²­í‚¹ ì „ì†¡ --------------------
+
     /// <summary>
-    /// pending Æ÷ÀÎÆ®µéÀ» Àü¼ÛÇÕ´Ï´Ù.
-    ///
-    /// - force=false¸é sendInterval¿¡ ¸ÂÃç ÁÖ±âÀûÀ¸·Î¸¸ Àü¼Û(Batching)
-    /// - maxPointsPerRpc ´ÜÀ§·Î ³ª´²¼­ Àü¼Û(Chunking)
+    /// pendingì— ëª¨ì¸ í¬ì¸íŠ¸ë¥¼ ë„¤íŠ¸ì›Œí¬ë¡œ ì „ì†¡.
+    /// 
+    /// force=false:
+    /// - sendInterval ì£¼ê¸°ë¡œë§Œ ì „ì†¡(ë°°ì¹˜)
+    /// 
+    /// force=true:
+    /// - ì¦‰ì‹œ ì „ì†¡(End ì§ì „, Begin ì§í›„ ë“±)
     /// </summary>
     private void Flush(bool force)
     {
-        if (pending.Count == 0) return;
-
-        if (!force && Time.unscaledTime < nextSendTime)
-            return;
-
-        StrokeNetEncoder.ForEachChunk(pending, maxPointsPerRpc, (start, count) =>
+        if (!force)
         {
-            var temp = new Vector2[count];
-            for (int i = 0; i < count; i++)
-                temp[i] = pending[start + i];
+            if (Time.unscaledTime < nextSendTime) return;
+            nextSendTime = Time.unscaledTime + sendInterval;
+        }
 
-            var packed = StrokeNetEncoder.PackPoints(temp);
-            hub.SendAddPointsChunk(currentStrokeId, packed);
-        });
+        if (pending.Count <= 0) return;
+
+        int total = pending.Count;
+
+        // í¬ì¸íŠ¸ ë¬¶ìŒì„ payload ë°”ì´íŠ¸ ì˜ˆì‚° ê¸°ì¤€ìœ¼ë¡œ ì²­í‚¹í•´ì„œ ì—¬ëŸ¬ ë²ˆ ë³´ë‚¸ë‹¤.
+        StrokeNetEncoderOptimized.ForEachChunkByBytes(
+            totalPoints: total,
+            maxBytesPerChunk: maxBytesPerRpc,
+            onChunk: (start, count) =>
+            {
+                var packed = StrokeNetEncoderOptimized.PackPoints(pending, start, count);
+
+                // Points ì´ë²¤íŠ¸ë„ seq í¬í•¨!
+                // ì£¼ì˜: ì²­í¬ê°€ ì—¬ëŸ¬ ê°œë©´ ì²­í¬ë§ˆë‹¤ seqë¥¼ "ê°ê°" ë¶€ì—¬í•´ì•¼ í•œë‹¤.
+                // ì™œëƒë©´ ì²­í¬ A,Bê°€ ë’¤ì§‘í˜€ì„œ ë„ì°©í•  ìˆ˜ ìˆê³ ,
+                // ê·¸ê±¸ seqë¡œ ì •ë ¬/í•„í„°ë§í•˜ê¸° ìœ„í•´ì„œë‹¤.
+                hub.SendAddPoints(NextSeq(), currentStrokeId, packed);
+            });
 
         pending.Clear();
-        nextSendTime = Time.unscaledTime + sendInterval;
+        hasLast = false;
     }
 }

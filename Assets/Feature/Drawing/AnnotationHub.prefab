@@ -1,6 +1,6 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
---- !u!1 &1549483219763810449
+--- !u!1 &8818379922752481129
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -8,9 +8,9 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 845558144736312113}
-  - component: {fileID: 439006055613699621}
-  - component: {fileID: 1511853087891174466}
+  - component: {fileID: 5775855443422297944}
+  - component: {fileID: 8668730312592774725}
+  - component: {fileID: 4046415838762168935}
   m_Layer: 0
   m_Name: AnnotationHub
   m_TagString: Untagged
@@ -18,13 +18,13 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &845558144736312113
+--- !u!4 &5775855443422297944
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1549483219763810449}
+  m_GameObject: {fileID: 8818379922752481129}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
@@ -33,35 +33,36 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &439006055613699621
+--- !u!114 &8668730312592774725
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1549483219763810449}
+  m_GameObject: {fileID: 8818379922752481129}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: -1552182283, guid: e725a070cec140c4caffb81624c8c787, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  SortKey: 3053545312
+  SortKey: 1880583083
   ObjectInterest: 1
-  Flags: 262145
+  Flags: 1
   NestedObjects: []
   NetworkedBehaviours:
-  - {fileID: 1511853087891174466}
+  - {fileID: 4046415838762168935}
   ForceRemoteRenderTimeframe: 0
---- !u!114 &1511853087891174466
+--- !u!114 &4046415838762168935
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1549483219763810449}
+  m_GameObject: {fileID: 8818379922752481129}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: c43a3176e51d5a14eb1f7af87e242817, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  annotatorBehaviour: {fileID: 0}
+  gapTimeoutSec: 0.35
+  maxBufferedEventsPerAuthor: 256

@@ -1,63 +1,63 @@
-using System;
+ï»¿using System;
 using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
 
 /// <summary>
-/// Unity Console ·Î±×(Debug.Log/Warning/Error)¸¦ °¡·ÎÃ¤¼­
-/// È­¸é ¿ŞÂÊ ¾Æ·¡¿¡ OnGUI·Î Ç¥½ÃÇÏ´Â µğ¹ö±× ¿À¹ö·¹ÀÌ.
+/// Unity Console ë¡œê·¸(Debug.Log/Warning/Error)ë¥¼ ê°€ë¡œì±„ì„œ
+/// í™”ë©´ ì™¼ìª½ ì•„ë˜ì— OnGUIë¡œ í‘œì‹œí•˜ëŠ” ë””ë²„ê·¸ ì˜¤ë²„ë ˆì´.
 /// </summary>
 public sealed class DebugLogOverlay : MonoBehaviour
 {
     [Header("Overlay")]
-    [Tooltip("È­¸é¿¡ Ç¥½ÃÇÒ ÃÖ´ë ·Î±× ÁÙ ¼ö")]
+    [Tooltip("í™”ë©´ì— í‘œì‹œí•  ìµœëŒ€ ë¡œê·¸ ì¤„ ìˆ˜")]
     [SerializeField] private int maxLines = 30;
 
-    [Tooltip("ÇÑ ÁÙ ÃÖ´ë Ç¥½Ã ±æÀÌ(³Ê¹« ±ä ½ºÅÃÆ®·¹ÀÌ½º Àß¸² ¹æÁö)")]
+    [Tooltip("í•œ ì¤„ ìµœëŒ€ í‘œì‹œ ê¸¸ì´(ë„ˆë¬´ ê¸´ ìŠ¤íƒíŠ¸ë ˆì´ìŠ¤ ì˜ë¦¼ ë°©ì§€)")]
     [SerializeField] private int maxCharsPerLine = 220;
 
-    [Tooltip("¿À¹ö·¹ÀÌ ÆĞµù(È­¸é °¡ÀåÀÚ¸® ¿©¹é)")]
+    [Tooltip("ì˜¤ë²„ë ˆì´ íŒ¨ë”©(í™”ë©´ ê°€ì¥ìë¦¬ ì—¬ë°±)")]
     [SerializeField] private Vector2 padding = new Vector2(12, 12);
 
-    [Tooltip("¿À¹ö·¹ÀÌ ¿µ¿ª Å©±â(Æø/³ôÀÌ). 0ÀÌ¸é ÀÚµ¿ °è»ê")]
+    [Tooltip("ì˜¤ë²„ë ˆì´ ì˜ì—­ í¬ê¸°(í­/ë†’ì´). 0ì´ë©´ ìë™ ê³„ì‚°")]
     [SerializeField] private Vector2 fixedSize = Vector2.zero;
 
-    [Tooltip("¹è°æ Åõ¸íµµ(0~1). 0ÀÌ¸é ¹è°æ ¾øÀ½")]
+    [Tooltip("ë°°ê²½ íˆ¬ëª…ë„(0~1). 0ì´ë©´ ë°°ê²½ ì—†ìŒ")]
     [Range(0f, 1f)]
     [SerializeField] private float backgroundAlpha = 0.35f;
 
     [Header("Filter")]
-    [Tooltip("Å°¿öµå°¡ ºñ¾îÀÖÀ¸¸é ÀüÃ¼ Ç¥½Ã. Å°¿öµå°¡ ÀÖÀ¸¸é ÇØ´ç ¹®ÀÚ¿­ Æ÷ÇÔ ·Î±×¸¸ Ç¥½Ã")]
+    [Tooltip("í‚¤ì›Œë“œê°€ ë¹„ì–´ìˆìœ¼ë©´ ì „ì²´ í‘œì‹œ. í‚¤ì›Œë“œê°€ ìˆìœ¼ë©´ í•´ë‹¹ ë¬¸ìì—´ í¬í•¨ ë¡œê·¸ë§Œ í‘œì‹œ")]
     [SerializeField] private string containsFilter = "";
 
-    [Tooltip("Warning ·Î±× Ç¥½Ã ¿©ºÎ")]
+    [Tooltip("Warning ë¡œê·¸ í‘œì‹œ ì—¬ë¶€")]
     [SerializeField] private bool showWarning = true;
 
-    [Tooltip("Error/Exception ·Î±× Ç¥½Ã ¿©ºÎ")]
+    [Tooltip("Error/Exception ë¡œê·¸ í‘œì‹œ ì—¬ë¶€")]
     [SerializeField] private bool showError = true;
 
-    [Tooltip("Log(ÀÏ¹İ) ·Î±× Ç¥½Ã ¿©ºÎ")]
+    [Tooltip("Log(ì¼ë°˜) ë¡œê·¸ í‘œì‹œ ì—¬ë¶€")]
     [SerializeField] private bool showLog = true;
 
     [Header("Controls")]
-    [Tooltip("F1·Î ¿À¹ö·¹ÀÌ Ç¥½Ã/¼û±è Åä±Û")]
+    [Tooltip("F1ë¡œ ì˜¤ë²„ë ˆì´ í‘œì‹œ/ìˆ¨ê¹€ í† ê¸€")]
     [SerializeField] private bool allowToggleKey = true;
 
-    [Tooltip("F2·Î ·Î±× Å¬¸®¾î")]
+    [Tooltip("F2ë¡œ ë¡œê·¸ í´ë¦¬ì–´")]
     [SerializeField] private bool allowClearKey = true;
 
-    [Tooltip("¿À¹ö·¹ÀÌ ±âº» Ç¥½Ã ¿©ºÎ")]
+    [Tooltip("ì˜¤ë²„ë ˆì´ ê¸°ë³¸ í‘œì‹œ ì—¬ë¶€")]
     [SerializeField] private bool visible = true;
 
     private readonly object _lock = new object();
 
-    // ½º·¹µå Äİ¹é¿¡¼­ ¹Ù·Î List¸¦ °Çµå¸®¸é À§ÇèÇÏ¹Ç·Î Å¥¿¡ ÀûÀç
+    // ìŠ¤ë ˆë“œ ì½œë°±ì—ì„œ ë°”ë¡œ Listë¥¼ ê±´ë“œë¦¬ë©´ ìœ„í—˜í•˜ë¯€ë¡œ íì— ì ì¬
     private readonly Queue<LogItem> _pending = new Queue<LogItem>(256);
 
-    // ½ÇÁ¦ Ç¥½Ã¿ë ¹öÆÛ
+    // ì‹¤ì œ í‘œì‹œìš© ë²„í¼
     private readonly LinkedList<string> _lines = new LinkedList<string>();
 
-    // IMGUI ½ºÅ¸ÀÏ/¸®¼Ò½º (OnGUI¿¡¼­¸¸ ¾ÈÀüÇÏ°Ô ÁØºñ)
+    // IMGUI ìŠ¤íƒ€ì¼/ë¦¬ì†ŒìŠ¤ (OnGUIì—ì„œë§Œ ì•ˆì „í•˜ê²Œ ì¤€ë¹„)
     private GUIStyle _style;
     private Texture2D _bgTex;
 
@@ -70,11 +70,11 @@ public sealed class DebugLogOverlay : MonoBehaviour
 
     private void Awake()
     {
-        // Awake¿¡¼­´Â GUI °ü·Ã Á¢±ÙÀ» ÇÏÁö ¾Ê´Â´Ù.
-        // (GUI.skin µîÀº ¹İµå½Ã OnGUI ¾È¿¡¼­¸¸ ¾ÈÀü)
+        // Awakeì—ì„œëŠ” GUI ê´€ë ¨ ì ‘ê·¼ì„ í•˜ì§€ ì•ŠëŠ”ë‹¤.
+        // (GUI.skin ë“±ì€ ë°˜ë“œì‹œ OnGUI ì•ˆì—ì„œë§Œ ì•ˆì „)
         DontDestroyOnLoad(gameObject);
 
-        // ¹è°æ ÅØ½ºÃ³´Â GUI È£ÃâÀÌ ¾Æ´Ï¶ó Texture »ı¼ºÀÌ¶ó Awake¿¡¼­µµ ¾ÈÀü
+        // ë°°ê²½ í…ìŠ¤ì²˜ëŠ” GUI í˜¸ì¶œì´ ì•„ë‹ˆë¼ Texture ìƒì„±ì´ë¼ Awakeì—ì„œë„ ì•ˆì „
         if (backgroundAlpha > 0f)
         {
             _bgTex = new Texture2D(1, 1, TextureFormat.RGBA32, false);
@@ -105,7 +105,7 @@ public sealed class DebugLogOverlay : MonoBehaviour
     }
 
     /// <summary>
-    /// ´Ù¸¥ ½º·¹µå¿¡¼­µµ È£ÃâµÉ ¼ö ÀÖÀ¸¹Ç·Î Å¥¿¡¸¸ ´ã´Â´Ù.
+    /// ë‹¤ë¥¸ ìŠ¤ë ˆë“œì—ì„œë„ í˜¸ì¶œë  ìˆ˜ ìˆìœ¼ë¯€ë¡œ íì—ë§Œ ë‹´ëŠ”ë‹¤.
     /// </summary>
     private void OnLogThreaded(string condition, string stackTrace, LogType type)
     {
@@ -121,7 +121,7 @@ public sealed class DebugLogOverlay : MonoBehaviour
     }
 
     /// <summary>
-    /// ¸ŞÀÎ ½º·¹µå¿¡¼­ Å¥¸¦ ºñ¿ö È­¸é Ç¥½Ã ¹öÆÛ·Î ¿Å±ä´Ù.
+    /// ë©”ì¸ ìŠ¤ë ˆë“œì—ì„œ íë¥¼ ë¹„ì›Œ í™”ë©´ í‘œì‹œ ë²„í¼ë¡œ ì˜®ê¸´ë‹¤.
     /// </summary>
     private void DrainPending()
     {
@@ -195,7 +195,7 @@ public sealed class DebugLogOverlay : MonoBehaviour
 
     private void EnsureGuiStyle()
     {
-        // GUI.skin Á¢±ÙÀº OnGUI ¾È¿¡¼­¸¸ ¾ÈÀüÇÏ¹Ç·Î ¿©±â¼­¸¸ »ı¼º
+        // GUI.skin ì ‘ê·¼ì€ OnGUI ì•ˆì—ì„œë§Œ ì•ˆì „í•˜ë¯€ë¡œ ì—¬ê¸°ì„œë§Œ ìƒì„±
         if (_style != null) return;
 
         _style = new GUIStyle(GUI.skin.label)
@@ -216,7 +216,7 @@ public sealed class DebugLogOverlay : MonoBehaviour
         float height = fixedSize.y > 0 ? fixedSize.y : Mathf.Min(420f, Screen.height * 0.35f);
 
         float x = padding.x;
-        float y = Screen.height - height - padding.y; // ¿ŞÂÊ ¾Æ·¡
+        float y = Screen.height - height - padding.y; // ì™¼ìª½ ì•„ë˜
 
         var rect = new Rect(x, y, width, height);
 

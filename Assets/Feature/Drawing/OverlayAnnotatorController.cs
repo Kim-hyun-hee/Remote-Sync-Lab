@@ -1,295 +1,151 @@
-using UnityEngine;
+ï»¿using UnityEngine;
+using UnityEngine.UIElements;
 
 /// <summary>
-/// "ÀÔ·Â(¸¶¿ì½º/Å°º¸µå)"À» ¹Ş¾Æ¼­:
-/// - ·ÎÄÃ ·»´õ(È­¸é¿¡ Áï½Ã ±×¸²)
-/// - ³×Æ®¿öÅ© Àü¼Û(´Ù¸¥ »ç¶÷¿¡°Ôµµ ±×¸²)
-///
-/// À» µ¿½Ã¿¡ ¼öÇàÇÏ´Â ÄÁÆ®·Ñ·¯.
-///
-/// ÀÌ ÄÁÆ®·Ñ·¯´Â "³×Æ®¿öÅ©¸¦ ¸ô¶óµµ" µå·ÎÀ× ÀÚÃ¼´Â °¡´ÉÇØ¾ß ÇÑ´Ù.
-/// ±×·¡¼­ net(AnnotationNetBridge)°¡ ¾ø°Å³ª ÁØºñ°¡ ¾È µÆÀ» ¶§´Â:
-/// - ·ÎÄÃ¿¡¼­¸¸ ±×¸®µµ·Ï(offline fallback) ¼³°èµÇ¾î ÀÖ´Ù.
-///
-/// ÇÙ½É °³³ä 3°¡Áö:
-/// 1) Á¤±ÔÈ­ ÁÂÇ¥(normalized):
-///    - È­¸é/ÆĞ³ÎÀÇ ÇÈ¼¿ ÁÂÇ¥¸¦ 0~1·Î ¹Ù²Û °ª.
-///    - UI Å©±â°¡ ¹Ù²î¾îµµ µ¿ÀÏÇÑ »ó´ë À§Ä¡¸¦ Ç¥ÇöÇÒ ¼ö ÀÖ´Ù.
-/// 2) ÃÖ¼Ò °Å¸® »ùÇÃ¸µ(minDistance):
-///    - ¸¶¿ì½º°¡ ¿òÁ÷ÀÏ ¶§ ¸Å ÇÁ·¹ÀÓ Æ÷ÀÎÆ®¸¦ ÂïÀ¸¸é Æ÷ÀÎÆ® Æø¹ß.
-///    - ÀÏÁ¤ °Å¸® ÀÌ»ó ¿òÁ÷¿´À» ¶§¸¸ Æ÷ÀÎÆ®¸¦ Ãß°¡ÇØ¼­ µ¥ÀÌÅÍ·®À» ÁÙÀÎ´Ù.
-/// 3) StrokeKey ºĞ¸®:
-///    - µ¿½Ã µå·ÎÀ×¿¡¼­ "Àü¿ª 1°³ ½ºÆ®·ÎÅ©"·Î °ü¸®ÇÏ¸é ¼±ÀÌ ¼¯ÀÎ´Ù.
-///    - (authorId, strokeId)·Î ½ºÆ®·ÎÅ©¸¦ ºĞ¸®ÇØ¼­ µ¶¸³ÀûÀ¸·Î °ü¸®ÇÑ´Ù.
-///    - ·ÎÄÃ ÀÔ·ÂÀº authorId=-1 °°Àº °íÁ¤°ªÀ» ½áµµ µÈ´Ù.
+/// ì…ë ¥(ë§ˆìš°ìŠ¤)ë¡œ ë“œë¡œì‰ì„ ìƒì„±í•˜ê³ , NetBridgeë¡œ ë„¤íŠ¸ì›Œí¬ ì „ì†¡.
+/// 
+/// - ë¡œì»¬ ì¦‰ì‹œ ë Œë”: UXë¥¼ ìœ„í•´ ë‚´ í™”ë©´ì—ì„œ ë°”ë¡œ ë³´ì´ê²Œ
+/// - ë„¤íŠ¸ì›Œí¬ ë Œë”: Hubê°€ RPCë¡œ ë°›ì•„ì„œ (authorId, strokeId) í‚¤ë¡œ ë‹¤ì‹œ ê·¸ë¦¼
+/// 
+/// ì£¼ì˜:
+/// - ë¡œì»¬ ì¦‰ì‹œ ë Œë”ëŠ” authorId=-1 ê°™ì€ ì„ì‹œ í‚¤ë¥¼ ì‚¬ìš©.
+/// - ë„¤íŠ¸ì›Œí¬ì—ì„œ ë‹¤ì‹œ ê·¸ë ¤ì§€ëŠ” ìŠ¤íŠ¸ë¡œí¬ëŠ” ì‹¤ì œ authorId í‚¤ë¥¼ ì‚¬ìš©.
+/// - ê·¸ë˜ì„œ ë‚´ í™”ë©´ì—ì„œëŠ” "ë¡œì»¬ ì„ "ê³¼ "ë„¤íŠ¸ì›Œí¬ ì„ "ì´ ê²¹ì³ ë³´ì¼ ìˆ˜ ìˆë‹¤.
+///   (ì´ê±¸ ì‹«ì–´í•˜ë©´ InvokeLocal=trueë¡œ ë°”ê¾¸ê±°ë‚˜, ë¡œì»¬ ì¦‰ì‹œ ë Œë”ë¥¼ ì œê±°í•˜ëŠ” ì •ì±…ì„ ì„ íƒí•˜ë©´ ë¨)
 /// </summary>
-public class OverlayAnnotatorController : MonoBehaviour
+[RequireComponent(typeof(UIDocument))]
+public class OverlayAnnotatorControllerOptimized : MonoBehaviour
 {
-    /// <summary>
-    /// °°Àº ÄÁÆ®·Ñ·¯·Îµµ uGUI(Texture2D) / UI Toolkit(Vector) µÑ ´Ù Å×½ºÆ®ÇÒ ¼ö ÀÖ°Ô ¸ğµå Á¦°ø.
-    /// </summary>
-    public enum Mode
-    {
-        Texture2D,
-        UIToolkit
-    }
-
-    [Header("Mode")]
-    [SerializeField] private Mode mode = Mode.Texture2D;
-
-    [Header("Annotators")]
-    [SerializeField] private MonoBehaviour texture2DAnnotator;
-    [SerializeField] private MonoBehaviour uiToolkitAnnotator;
+    [Header("Refs")]
+    [SerializeField] private UIToolkitOverlayAnnotatorOptimized annotator;
+    [SerializeField] private AnnotationNetBridgeOptimized netBridge;
 
     [Header("Brush")]
-    [SerializeField] private Color strokeColor = Color.red;
+    [SerializeField] private float widthPx = 4f;
 
-    /// <summary>
-    /// ¼± µÎ²²(px). °¢ Annotator ±¸ÇöÃ¼´Â ÀÌ¸¦ "ÀÚ±â ¹æ½Ä´ë·Î" ÇØ¼®ÇÑ´Ù.
-    /// - Texture2D´Â ½ÇÁ¦ ÇÈ¼¿ ±â¹İÀ¸·Î ·¡½ºÅÍ¶óÀÌÁî
-    /// - Vector(UI Toolkit)´Â painter2D lineWidth·Î »ç¿ë
-    /// </summary>
-    [SerializeField] private float strokeWidthPx = 4f;
+    private UIDocument _doc;
+    private VisualElement _root;
 
-    /// <summary>
-    /// Æ÷ÀÎÆ®¸¦ Âï´Â ÃÖ¼Ò °Å¸®(px).
-    /// - °ªÀÌ ÀÛÀ»¼ö·Ï ´õ ºÎµå·´Áö¸¸ µ¥ÀÌÅÍ°¡ ´Ã¾î³­´Ù.
-    /// - °ªÀÌ Å¬¼ö·Ï µ¥ÀÌÅÍ°¡ ÁÙÁö¸¸ °¢Áø ´À³¦ÀÌ ³¯ ¼ö ÀÖ´Ù.
-    ///
-    /// ³»ºÎÀûÀ¸·Î´Â "Á¤±ÔÈ­ °Å¸®"·Î º¯È¯ÇØ¼­ ºñ±³ÇÑ´Ù.
-    /// </summary>
-    [SerializeField] private float minDistancePx = 3f;
+    private bool _dragging;
+    private OverlayStrokeKey _localKey;
+    private int _localStrokeId;
 
-    [Header("Text")]
-    [SerializeField] private string sampleText = "¿©±â È®ÀÎ";
-
-    [Header("NetWork")]
-    [SerializeField] private AnnotationNetBridge net;
-
-    /// <summary>
-    /// ÇöÀç È°¼ºÈ­µÈ Annotator (mode¿¡ µû¶ó ±³Ã¼µÊ)
-    /// </summary>
-    private IOverlayAnnotator active;
-
-    /// <summary>
-    /// ÇöÀç µå·¡±× ÁßÀÎÁö(ÁÂÅ¬¸¯ ´©¸£°í ÀÖ´ÂÁö)
-    /// </summary>
-    private bool isDrawing;
-
-    /// <summary>
-    /// ¸¶Áö¸·À¸·Î ÂïÀº Á¤±ÔÈ­ ÁÂÇ¥(Æ÷ÀÎÆ® »ùÇÃ¸µ ±âÁØ)
-    /// </summary>
-    private Vector2 lastNorm;
-
-    /// <summary>
-    /// minDistancePx¸¦ Á¤±ÔÈ­ °Å¸®·Î ¹Ù²Û µÚ, Á¦°ö °Å¸®·Î ºñ±³ÇÏ±â À§ÇÑ °ª.
-    /// - sqrt¸¦ ÇÇÇÏ°í ¼º´ÉÀ» À§ÇØ sqrMagnitude »ç¿ë.
-    /// </summary>
-    private float minDistanceNormSqr;
-
-    /// <summary>
-    /// ·ÎÄÃ ÀÔ·ÂÀÇ authorId.
-    /// - ³×Æ®¿öÅ© ÀÔ·Â(authorId=PlayerRef ÇØ½Ã µî)°ú Ãæµ¹ÇÏÁö ¾Ê°Ô À½¼ö·Î µĞ´Ù.
-    /// </summary>
-    private const int LocalAuthorId = -1;
-
-    /// <summary>
-    /// ³×Æ®¿öÅ© strokeId¸¦ ¸ø ¹Ş´Â(offline) °æ¿ì¸¦ À§ÇÑ ·ÎÄÃ ½ÃÄö½º.
-    /// </summary>
-    private int localStrokeSeq = 1;
-
-    /// <summary>
-    /// ÇöÀç ±×¸®°í ÀÖ´Â ½ºÆ®·ÎÅ©ÀÇ Å°.
-    /// - Add / End´Â ¹İµå½Ã ÀÌ Å°·Î È£ÃâÇØ¾ß "´Ù¸¥ ½ºÆ®·ÎÅ©"¿Í ¼¯ÀÌÁö ¾Ê´Â´Ù.
-    /// </summary>
-    private OverlayStrokeKey currentStrokeKey;
+    private Color32 _currentColor = new Color32(255, 0, 0, 255);
 
     private void Awake()
     {
-        // ½ÃÀÛ ½Ã ÇöÀç mode¿¡ ¸Â´Â annotator¸¦ È°¼ºÈ­
-        Switch(mode);
+        _doc = GetComponent<UIDocument>();
     }
 
-    private void OnValidate()
+    private void Start()
     {
-        // ¿¡µğÅÍ¿¡¼­ mode¸¦ ¹Ù²Ù¸é, ÇÃ·¹ÀÌ Áß¿¡µµ Áï½Ã ¹İ¿µ
-        if (Application.isPlaying)
-            Switch(mode);
-    }
+        _root = _doc.rootVisualElement;
 
-    /// <summary>
-    /// mode¿¡ µû¶ó ½ÇÁ¦ annotator ±¸ÇöÃ¼¸¦ ±³Ã¼ÇÑ´Ù.
-    ///
-    /// µ¿ÀÛ:
-    /// 1) µÑ ´Ù ºñÈ°¼ºÈ­(SetActive(false))
-    /// 2) ¼±ÅÃµÈ ÂÊ¸¸ active·Î ¼³Á¤ + SetActive(true)
-    /// 3) minDistanceNorm Àç°è»ê
-    /// </summary>
-    public void Switch(Mode newMode)
-    {
-        mode = newMode;
+        if (annotator == null) annotator = GetComponent<UIToolkitOverlayAnnotatorOptimized>();
+        if (netBridge == null) netBridge = GetComponent<AnnotationNetBridgeOptimized>();
 
-        var a = texture2DAnnotator as IOverlayAnnotator;
-        var b = uiToolkitAnnotator as IOverlayAnnotator;
-
-        // µÑ ´Ù ²¨µÎ°í
-        if (a != null) a.SetActive(false);
-        if (b != null) b.SetActive(false);
-
-        // ¼±ÅÃµÈ ±¸ÇöÃ¼¸¦ active·Î
-        active = (mode == Mode.Texture2D) ? a : b;
-
-        if (active != null)
-            active.SetActive(true);
-
-        RecomputeMinDistanceNorm();
+        BuildPaletteUI();
     }
 
     private void Update()
     {
-        // Annotator°¡ ÁØºñµÇÁö ¾Ê¾ÒÀ¸¸é(ÆĞ³Î »ı¼º Àü µî) ÀÔ·ÂÀ» ¹«½Ã
-        if (active == null || !active.IsReady)
+        if (annotator == null || netBridge == null) return;
+        if (!annotator.IsReady) return;
+
+        // ë‹¨ì¶•í‚¤ë¡œ ìƒ‰ ë³€ê²½
+        if (Input.GetKeyDown(KeyCode.Alpha1)) _currentColor = new Color32(255, 0, 0, 255);
+        if (Input.GetKeyDown(KeyCode.Alpha2)) _currentColor = new Color32(0, 255, 0, 255);
+        if (Input.GetKeyDown(KeyCode.Alpha3)) _currentColor = new Color32(0, 128, 255, 255);
+        if (Input.GetKeyDown(KeyCode.Alpha4)) _currentColor = new Color32(255, 255, 0, 255);
+        if (Input.GetKeyDown(KeyCode.Alpha5)) _currentColor = new Color32(255, 255, 255, 255);
+
+        if (Input.GetMouseButtonDown(0))
+            TryBeginStroke(Input.mousePosition);
+
+        if (_dragging && Input.GetMouseButton(0))
+            TryAddPoint(Input.mousePosition);
+
+        if (_dragging && Input.GetMouseButtonUp(0))
+            EndStroke();
+
+        // C: ì „ì²´ í´ë¦¬ì–´(í…ŒìŠ¤íŠ¸)
+        if (Input.GetKeyDown(KeyCode.C))
+            netBridge.NetClearAll();
+    }
+
+    private void TryBeginStroke(Vector2 screenPos)
+    {
+        if (!annotator.TryScreenToNormalized(screenPos, out var firstNorm))
             return;
 
-        // UI Å©±â º¯°æ µî¿¡ ´ëºñÇØ¼­ ÁÖ±âÀûÀ¸·Î minDistanceNormÀ» °»½Å
-        if (Time.frameCount % 15 == 0)
-            RecomputeMinDistanceNorm();
+        _localStrokeId = netBridge.NetBeginStroke(_currentColor, widthPx, firstNorm);
+        if (_localStrokeId < 0) return;
 
-        // ===== ÁÂÅ¬¸¯ µå·ÎÀ× =====
-        if (Input.GetMouseButtonDown(0))
+        // ë¡œì»¬ ì¦‰ì‹œ ë Œë”ìš© í‚¤
+        //_localKey = new OverlayStrokeKey(authorId: -1, strokeId: _localStrokeId);
+
+        //annotator.BeginStroke(_localKey, _currentColor, widthPx);
+        //annotator.AddPoints(_localKey, new[] { firstNorm });
+
+        _dragging = true;
+    }
+
+    private void TryAddPoint(Vector2 screenPos)
+    {
+        if (!annotator.TryScreenToNormalized(screenPos, out var norm))
+            return;
+
+        netBridge.NetAddPoint(norm);
+
+        // ë¡œì»¬ ì¦‰ì‹œ ë Œë”
+        //annotator.AddPoints(_localKey, new[] { norm });
+    }
+
+    private void EndStroke()
+    {
+        netBridge.NetEndStroke();
+        //annotator.EndStroke(_localKey);
+        _dragging = false;
+    }
+
+    private void BuildPaletteUI()
+    {
+        // ìƒë‹¨ ê°„ë‹¨ íˆ´ë°”
+        var bar = new VisualElement();
+        bar.style.position = Position.Absolute;
+        bar.style.left = 8;
+        bar.style.top = 8;
+        bar.style.flexDirection = FlexDirection.Row;
+        bar.style.marginLeft = 6;
+        bar.style.marginRight = 6;
+        bar.style.marginTop = 6;
+        bar.style.marginBottom = 6;
+        bar.style.paddingLeft = 8;
+        bar.style.paddingRight = 8;
+        bar.style.paddingTop = 6;
+        bar.style.paddingBottom = 6;
+        bar.style.backgroundColor = new Color(0, 0, 0, 0.35f);
+        bar.style.borderBottomLeftRadius = 8;
+        bar.style.borderBottomRightRadius = 8;
+        bar.style.borderTopLeftRadius = 8;
+        bar.style.borderTopRightRadius = 8;
+
+        _root.Add(bar);
+
+        void AddColorButton(string name, Color32 c)
         {
-            // È­¸é ÁÂÇ¥ ¡æ Á¤±ÔÈ­ ÁÂÇ¥ º¯È¯ÀÌ ¼º°øÇßÀ» ¶§¸¸ ½ÃÀÛ
-            if (active.TryScreenToNormalized(Input.mousePosition, out var norm))
-            {
-                isDrawing = true;
-                lastNorm = norm;
-
-                BeginLocalStroke(norm);
-            }
-        }
-        else if (Input.GetMouseButton(0) && isDrawing)
-        {
-            if (active.TryScreenToNormalized(Input.mousePosition, out var norm))
-            {
-                // ÀÏÁ¤ °Å¸® ÀÌ»ó ¿òÁ÷¿´À» ¶§¸¸ Æ÷ÀÎÆ® Ãß°¡
-                if ((norm - lastNorm).sqrMagnitude >= minDistanceNormSqr)
-                {
-                    lastNorm = norm;
-                    AddLocalPoint(norm);
-                }
-            }
-        }
-        else if (Input.GetMouseButtonUp(0) && isDrawing)
-        {
-            isDrawing = false;
-            EndLocalStroke();
+            var btn = new Button(() => _currentColor = c) { text = name };
+            btn.style.minWidth = 46;
+            bar.Add(btn);
         }
 
-        // ===== ¿ìÅ¬¸¯ ÅØ½ºÆ® =====
-        if (Input.GetMouseButtonDown(1))
-        {
-            if (active.TryScreenToNormalized(Input.mousePosition, out var norm))
-            {
-                AddLocalLabel(norm, sampleText);
-            }
-        }
+        AddColorButton("R", new Color32(255, 0, 0, 255));
+        AddColorButton("G", new Color32(0, 255, 0, 255));
+        AddColorButton("B", new Color32(0, 128, 255, 255));
+        AddColorButton("Y", new Color32(255, 255, 0, 255));
+        AddColorButton("W", new Color32(255, 255, 255, 255));
 
-        // ===== ÀüÃ¼ Å¬¸®¾î =====
-        // ÇĞ½À/Å×½ºÆ® ÆíÀÇ¿ë ´ÜÃàÅ°
-        if (Input.GetKeyDown(KeyCode.C))
-        {
-            ClearAll();
-        }
-    }
-
-    /// <summary>
-    /// ÇÈ¼¿ ´ÜÀ§ minDistancePx¸¦ Á¤±ÔÈ­ °Å¸®·Î º¯È¯ÇÑ´Ù.
-    ///
-    /// ¿Ö º¯È¯ÇÏ³ª?
-    /// - È­¸é/ÆĞ³Î Å©±â°¡ ¹Ù²î¸é, °°Àº px °Å¸®¶óµµ "Á¤±ÔÈ­ °Å¸®" ±âÁØÀÌ ´Ş¶óÁø´Ù.
-    /// - Á¤±ÔÈ­·Î ¹Ù²ãµÎ¸é, ÀÔ·Â Ã³¸®(»ùÇÃ¸µ)°¡ UI Å©±â¿¡ ´ú ¹Î°¨ÇØÁø´Ù.
-    ///
-    /// º¯È¯ ±âÁØ:
-    /// - (°¡·Î, ¼¼·Î) Áß ÀÛÀº ÃàÀ» denomÀ¸·Î »ç¿ë(´ë·«ÀûÀÎ ½ºÄÉÀÏ ÀÏ°ü¼º ¸ñÀû)
-    /// </summary>
-    private void RecomputeMinDistanceNorm()
-    {
-        var size = active?.GetRenderSizePx() ?? Vector2.one;
-        float w = Mathf.Max(1f, size.x);
-        float h = Mathf.Max(1f, size.y);
-
-        float denom = Mathf.Min(w, h);
-        float d = minDistancePx / denom;
-
-        minDistanceNormSqr = d * d;
-    }
-
-    /// <summary>
-    /// ·ÎÄÃ ½ºÆ®·ÎÅ© ½ÃÀÛ.
-    ///
-    /// Áß¿äÇÑ Èå¸§:
-    /// - ³×Æ®¿öÅ©°¡ ÁØºñµÇ¾î ÀÖÀ¸¸é NetBeginStroke¸¦ ¸ÕÀú È£ÃâÇØ¼­ strokeId¸¦ ¹Ş´Â´Ù.
-    ///   (ÀÌ·¸°Ô ÇÏ¸é "·ÎÄÃ ·»´õ ½ºÆ®·ÎÅ©"¿Í "³×Æ®¿öÅ© ½ºÆ®·ÎÅ©"ÀÇ ¹øÈ£°¡ µ¿ÀÏÇØÁ®¼­ µğ¹ö±ëÀÌ ½¬¿ò)
-    /// - ³×Æ®¿öÅ©°¡ ¾È µÇ¸é localStrokeSeq·Î fallback.
-    /// </summary>
-    private void BeginLocalStroke(Vector2 norm)
-    {
-        // ³×Æ®¿öÅ©·Î ¸ÕÀú BeginÀ» ½ÃµµÇØ¼­ strokeId¸¦ ¹Ş¾Æ¿Â´Ù.
-        // - ¼º°ø: netStrokeId > 0
-        // - ½ÇÆĞ: -1 ¶Ç´Â 0
-        int netStrokeId = (net != null) ? net.NetBeginStroke(strokeColor, strokeWidthPx, norm) : -1;
-
-        int strokeId = (netStrokeId > 0) ? netStrokeId : localStrokeSeq++;
-
-        // ·ÎÄÃ authorId´Â -1, strokeId´Â À§¿¡¼­ °áÁ¤ÇÑ °ª
-        currentStrokeKey = new OverlayStrokeKey(LocalAuthorId, strokeId);
-
-        // ·ÎÄÃ ·»´õ ½ÃÀÛ
-        active.BeginStroke(currentStrokeKey, strokeColor, strokeWidthPx);
-        active.AddStrokePoint(currentStrokeKey, norm);
-    }
-
-    /// <summary>
-    /// ·ÎÄÃ Æ÷ÀÎÆ® Ãß°¡.
-    /// - ·ÎÄÃ ·»´õ¿¡ Áï½Ã ¹İ¿µ
-    /// - ³×Æ®¿öÅ©¿¡µµ Æ÷ÀÎÆ® Àü¼Û(NetAddPoint)
-    /// </summary>
-    private void AddLocalPoint(Vector2 norm)
-    {
-        active.AddStrokePoint(currentStrokeKey, norm);
-        net?.NetAddPoint(norm);
-    }
-
-    /// <summary>
-    /// ·ÎÄÃ ½ºÆ®·ÎÅ© Á¾·á.
-    /// - ·ÎÄÃ ·»´õ Á¾·á
-    /// - ³×Æ®¿öÅ©¿¡µµ Á¾·á Àü¼Û(NetEndStroke)
-    /// </summary>
-    private void EndLocalStroke()
-    {
-        active.EndStroke(currentStrokeKey);
-        net?.NetEndStroke();
-    }
-
-    /// <summary>
-    /// ÅØ½ºÆ® ¶óº§ Ãß°¡.
-    /// - ·ÎÄÃ¿¡ Ç¥½Ã
-    /// - ³×Æ®¿öÅ©¿¡µµ Àü¼Û
-    /// </summary>
-    private void AddLocalLabel(Vector2 norm, string text)
-    {
-        active.AddText(norm, text);
-        net?.NetAddLabel(norm, text);
-    }
-
-    /// <summary>
-    /// ÀüÃ¼ Å¬¸®¾î.
-    /// - ·ÎÄÃ Å¬¸®¾î
-    /// - ³×Æ®¿öÅ©·Îµµ Å¬¸®¾î ¿äÃ»(¸ğµç »ç¶÷¿¡°Ô ¹İ¿µ + È÷½ºÅä¸® ÃÊ±âÈ­)
-    /// </summary>
-    private void ClearAll()
-    {
-        active.Clear();
-        net?.NetClear();
+        var clearBtn = new Button(() => netBridge.NetClearAll()) { text = "Clear" };
+        bar.Add(clearBtn);
     }
 }

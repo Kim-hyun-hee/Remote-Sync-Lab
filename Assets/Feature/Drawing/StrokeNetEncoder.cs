@@ -1,82 +1,54 @@
+ï»¿using System;
 using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// ³×Æ®¿öÅ©·Î "¸¹Àº Æ÷ÀÎÆ®"¸¦ º¸³¾ ¶§ °¡Àå ¸ÕÀú ºÎµúÈ÷´Â ¹®Á¦´Â:
-/// 1) ¸Ş½ÃÁö Å©±â Á¦ÇÑ(= ÇÑ ¹ø¿¡ ³Ê¹« Å« payload¸¦ ¸ø º¸³¿)
-/// 2) ºó¹øÇÑ Àü¼Û(= ÃÊ´ç ¼ö½Ê~¼ö¹é ¹ø Æ÷ÀÎÆ®°¡ »ı±æ ¼ö ÀÖÀ½)
-///
-/// ±×·¡¼­ "ÁÂÇ¥ µ¥ÀÌÅÍÀÇ Å©±â"¸¦ ÁÙÀÌ´Â(¾ĞÃà/ÀÎÄÚµù) ±â¹ıÀÌ ÇÊ¿äÇÏ´Ù.
-///
-/// ÀÌ Å¬·¡½º´Â:
-/// - Vector2 (0~1 Á¤±ÔÈ­ ÁÂÇ¥) ¸¦
-/// - ushort (0~65535) µÎ °³·Î ¾çÀÚÈ­(quantization)ÇØ¼­
-/// - 1 Æ÷ÀÎÆ®´ç 4¹ÙÀÌÆ®·Î Á÷·ÄÈ­ÇÑ´Ù.
-///   (x:2¹ÙÀÌÆ® + y:2¹ÙÀÌÆ® = 4¹ÙÀÌÆ®)
-///
-/// ÀåÁ¡:
-/// - float(4B) µÎ °³¸é 8¹ÙÀÌÆ®ÀÎµ¥ ¡æ 4¹ÙÀÌÆ®·Î ¹İ°¨
-/// - Á¤±ÔÈ­ ÁÂÇ¥(0~1)¶ó´Â ÀüÁ¦°¡ ÀÖÀ¸´Ï °¡´ÉÇÑ ¹æ½Ä
-///
-/// ´ÜÁ¡(Trade-off):
-/// - Á¤¹Ğµµ°¡ ¾à°£ ¼Õ½ÇµÈ´Ù(¾çÀÚÈ­ ¿ÀÂ÷).
-///   ÇÏÁö¸¸ µå·ÎÀ× Æ÷ÀÎÆ®´Â "ÇÈ¼¿ ´ÜÀ§" ÀÇ¹Ì°¡ °­ÇØ¼­ ´ëºÎºĞ ÃæºĞÇÏ´Ù.
+/// ë„¤íŠ¸ì›Œí¬ payloadë¥¼ ì¤„ì´ê¸° ìœ„í•œ í¬ì¸íŠ¸ ì¸ì½”ë”.
+/// 
+/// í•µì‹¬ ì•„ì´ë””ì–´:
+/// - ì •ê·œí™” ì¢Œí‘œ(0..1)ë¥¼ ushort(0..65535)ë¡œ ë³€í™˜í•˜ë©´
+///   í¬ì¸íŠ¸ 1ê°œë‹¹ x,y ê°ê° 2ë°”ì´íŠ¸ = 4ë°”ì´íŠ¸ë¡œ ê³ ì •.
+/// - float(4ë°”ì´íŠ¸) ë‘ ê°œë¥¼ ë³´ë‚´ë©´ 8ë°”ì´íŠ¸ì¸ë° ì ˆë°˜ìœ¼ë¡œ ê°ì†Œ.
+/// 
+/// ì£¼ì˜:
+/// - ushort íŒ¨í‚¹ì€ 'ì •ë°€ë„'ê°€ ì•½ê°„ ì¤„ì–´ë“¤ì§€ë§Œ (65536ë‹¨ê³„)
+///   ë“œë¡œì‰ì—ëŠ” ë³´í†µ ì¶©ë¶„íˆ ìì—°ìŠ¤ëŸ½ë‹¤.
 /// </summary>
-public static class StrokeNetEncoder
+public static class StrokeNetEncoderOptimized
 {
-    /// <summary>
-    /// float(0~1) °ªÀ» ushort(0~65535)·Î º¯È¯ÇÑ´Ù.
-    ///
-    /// - ³×Æ®¿öÅ©¿¡¼­´Â float¸¦ ±×´ë·Î º¸³»¸é ¿ë·®ÀÌ Å©´Ù.
-    /// - 0~1 ¹üÀ§¸é 16ºñÆ®·Îµµ ²Ï ÃÎÃÎÇÏ°Ô Ç¥Çö °¡´É(65536´Ü°è).
-    ///
-    /// Clamp01 + RoundToInt¸¦ ÇÏ´Â ÀÌÀ¯:
-    /// - ÀÔ·ÂÀÌ ¹üÀ§ ¹ÛÀ¸·Î Æ¢´Â °æ¿ì(°è»ê ¿ÀÂ÷/»ç¿ëÀÚ ÀÔ·Â)¸¦ ¾ÈÀüÇÏ°Ô Ã³¸®
-    /// - Áß°£°ªÀ» °¡Àå °¡±î¿î Á¤¼ö ´Ü°è·Î ¹İ¿Ã¸²ÇØ¼­ ¿ÀÂ÷¸¦ ÃÖ¼ÒÈ­
-    /// </summary>
+    public const int BytesPerPoint = 4;
+
     public static ushort Float01ToU16(float v)
         => (ushort)Mathf.Clamp(Mathf.RoundToInt(Mathf.Clamp01(v) * 65535f), 0, 65535);
 
-    /// <summary>
-    /// ushort(0~65535)¸¦ float(0~1)·Î µÇµ¹¸°´Ù.
-    ///
-    /// ÁÖÀÇ:
-    /// - ¿ø·¡ float·Î "Á¤È®È÷" º¹¿øµÇ´Â °Ô ¾Æ´Ï¶ó,
-    ///   65536 ´Ü°è Áß ÇÏ³ª·Î º¹¿øµÈ´Ù(¾çÀÚÈ­).
-    /// </summary>
     public static float U16ToFloat01(ushort v)
         => v / 65535f;
 
     /// <summary>
-    /// Á¤±ÔÈ­ Æ÷ÀÎÆ® ¸®½ºÆ®¸¦ byte[]·Î ÆĞÅ·ÇÑ´Ù.
-    ///
-    /// Æ÷¸Ë:
-    /// - 1 point = 4 bytes (little endian)
-    ///   [x_low, x_high, y_low, y_high]
-    ///
-    /// Little endianÀ» ¾²´Â ÀÌÀ¯:
-    /// - ´ëºÎºĞÀÇ PC/¸ğ¹ÙÀÏ È¯°æ¿¡¼­ ÀÚ¿¬½º·¯¿î ¸Ş¸ğ¸® Ç¥Çö°ú ¸Â´Â´Ù.
-    /// - Unpack¿¡¼­µµ µ¿ÀÏÇÑ ±ÔÄ¢À¸·Î ÀĞÀ¸¸é µÈ´Ù.
+    /// points[start..start+count) ë¥¼ byte[]ë¡œ íŒ¨í‚¹.
+    /// - 1 point = 4 bytes
+    /// 
+    /// ì™œ ìƒˆ ë°°ì—´ì„ ìƒì„±í•˜ë‚˜?
+    /// - ì´ìƒì ìœ¼ë¡œëŠ” ArrayPoolë¡œ ì¬ì‚¬ìš©í•˜ê³  ì‹¶ì§€ë§Œ,
+    ///   Fusion RPCê°€ ë‚´ë¶€ì—ì„œ ì–¸ì œê¹Œì§€ byte[]ë¥¼ ì°¸ì¡°í•˜ëŠ”ì§€(ë²„ì „ë³„) í™•ì‹¤ì¹˜ ì•Šìœ¼ë©´
+    ///   ì¬ì‚¬ìš©ì´ ìœ„í—˜í•  ìˆ˜ ìˆë‹¤.
+    /// - ì•ˆì „ ìš°ì„ ìœ¼ë¡œ "ìƒˆ ë°°ì—´"ì„ ê¸°ë³¸ìœ¼ë¡œ ë‘”ë‹¤.
     /// </summary>
-    public static byte[] PackPoints(IReadOnlyList<Vector2> points)
+    public static byte[] PackPoints(IReadOnlyList<Vector2> points, int start, int count)
     {
-        int n = points.Count;
-        var bytes = new byte[n * 4];
+        var bytes = new byte[count * BytesPerPoint];
         int o = 0;
 
-        for (int i = 0; i < n; i++)
+        for (int i = 0; i < count; i++)
         {
-            ushort x = Float01ToU16(points[i].x);
-            ushort y = Float01ToU16(points[i].y);
+            var p = points[start + i];
+            ushort x = Float01ToU16(p.x);
+            ushort y = Float01ToU16(p.y);
 
-            // x (2 bytes)
             bytes[o + 0] = (byte)(x & 0xFF);
             bytes[o + 1] = (byte)((x >> 8) & 0xFF);
-
-            // y (2 bytes)
             bytes[o + 2] = (byte)(y & 0xFF);
             bytes[o + 3] = (byte)((y >> 8) & 0xFF);
-
             o += 4;
         }
 
@@ -84,50 +56,38 @@ public static class StrokeNetEncoder
     }
 
     /// <summary>
-    /// byte[]¸¦ Á¤±ÔÈ­ Æ÷ÀÎÆ® ¸®½ºÆ®·Î ¾ğÆĞÅ·ÇÑ´Ù.
-    ///
-    /// outPoints¸¦ "»õ·Î »ı¼º"ÇÏÁö ¾Ê°í Clear ÈÄ Àç»ç¿ëÇÏ´Â ÀÌÀ¯:
-    /// - µå·ÎÀ×Àº ¸Å¿ì ºó¹øÇØ¼­ GC(°¡ºñÁö) ¾Ğ·ÂÀ» ÁÙÀÌ´Â °Ô Áß¿äÇÏ´Ù.
-    /// - List¸¦ Àç»ç¿ëÇÏ¸é ¸Ş¸ğ¸® ÇÒ´çÀ» Å©°Ô ÁÙÀÏ ¼ö ÀÖ´Ù.
+    /// byte[]ì—ì„œ pointsë¥¼ ë³µì›.
+    /// - outPointsëŠ” ì¬ì‚¬ìš©(List.Clear í›„ Add)ë¡œ GCë¥¼ ì¤„ì¸ë‹¤.
     /// </summary>
     public static void UnpackPoints(byte[] bytes, List<Vector2> outPoints)
     {
         outPoints.Clear();
         if (bytes == null) return;
 
-        // 4¹ÙÀÌÆ® ´ÜÀ§·Î ÀĞ´Â´Ù.
         for (int o = 0; o + 3 < bytes.Length; o += 4)
         {
             ushort x = (ushort)(bytes[o + 0] | (bytes[o + 1] << 8));
             ushort y = (ushort)(bytes[o + 2] | (bytes[o + 3] << 8));
-
             outPoints.Add(new Vector2(U16ToFloat01(x), U16ToFloat01(y)));
         }
     }
 
     /// <summary>
-    /// Æ÷ÀÎÆ®¸¦ ÀÏÁ¤ °³¼ö(maxPointsPerChunk)·Î ÂÉ°³¼­(Chunk) ¼øÈ¸ÇÑ´Ù.
-    ///
-    /// ¿Ö ÇÊ¿äÇÏ³ª?
-    /// - RPC/¸Ş½ÃÁö¿¡´Â Å©±â Á¦ÇÑÀÌ ÀÖ´Ù.
-    /// - µå·ÎÀ× Æ÷ÀÎÆ®°¡ ¸¹¾ÆÁö¸é ÇÑ ¹ø¿¡ º¸³»·Á´Ù Á¦ÇÑ¿¡ °É¸± ¼ö ÀÖ´Ù.
-    ///
-    /// onChunk(startIndex, count):
-    /// - startIndexºÎÅÍ count°³¸¦ ÇÏ³ªÀÇ chunk·Î º¸³»¸é µÈ´Ù.
-    ///
-    /// ÁÖÀÇ:
-    /// - ÀÌ ÇÔ¼ö´Â "µ¥ÀÌÅÍ¸¦ º¸³»ÁÖ´Â" °Ô ¾Æ´Ï¶ó,
-    ///   "¾î¶»°Ô ³ª´­Áö" ÀÎµ¦½º ±¸°£¸¸ Á¦°øÇÑ´Ù.
-    /// - ½ÇÁ¦ Àü¼ÛÀº AnnotationHub/RPC ÂÊ¿¡¼­ ÇÑ´Ù.
+    /// "ë°”ì´íŠ¸ ì˜ˆì‚°" ê¸°ë°˜ ì²­í‚¹ ë°˜ë³µ.
+    /// 
+    /// ì™œ í¬ì¸íŠ¸ ê°œìˆ˜ ê¸°ì¤€ì´ ì•„ë‹ˆë¼ ë°”ì´íŠ¸ ê¸°ì¤€ì¸ê°€?
+    /// - ë„¤íŠ¸ì›Œí¬ ì œí•œì€ ë³´í†µ 'payload byte í¬ê¸°'ë¡œ ê±¸ë¦°ë‹¤.
+    /// - í¬ì¸íŠ¸ ê°œìˆ˜ë§Œìœ¼ë¡œ ìë¥´ë©´ ìƒ‰/í­/ì¶”ê°€ ë°ì´í„°ê°€ ì„ì¼ ë•Œ ê³„ì‚°ì´ í‹€ì–´ì§ˆ ìˆ˜ ìˆë‹¤.
+    /// - ë°”ì´íŠ¸ ì˜ˆì‚°ìœ¼ë¡œ ì˜ë¼ì•¼ ì•ˆì •ì ì´ë‹¤.
     /// </summary>
-    public static void ForEachChunk(IReadOnlyList<Vector2> points, int maxPointsPerChunk, System.Action<int, int> onChunk)
+    public static void ForEachChunkByBytes(int totalPoints, int maxBytesPerChunk, Action<int, int> onChunk)
     {
-        int n = points.Count;
-        int start = 0;
+        int maxPointsPerChunk = Mathf.Max(1, maxBytesPerChunk / BytesPerPoint);
 
-        while (start < n)
+        int start = 0;
+        while (start < totalPoints)
         {
-            int count = Mathf.Min(maxPointsPerChunk, n - start);
+            int count = Mathf.Min(maxPointsPerChunk, totalPoints - start);
             onChunk(start, count);
             start += count;
         }

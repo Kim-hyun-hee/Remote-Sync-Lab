@@ -1,98 +1,122 @@
-using System.Collections.Generic;
+ï»¿using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using TMPro;
 
 /// <summary>
-/// uGUI(RawImage) À§¿¡ Texture2D¸¦ »ı¼ºÇÏ°í ÇÈ¼¿ ¹öÆÛ¿¡ ¼±À» ±×¸®´Â Annotator.
+/// uGUI(RawImage) ìœ„ì— Texture2Dë¥¼ ìƒì„±í•˜ê³  í”½ì…€ ë²„í¼ì— ì„ ì„ ê·¸ë¦¬ëŠ” Annotator.
 /// 
-/// ±âÁ¸ ¹®Á¦:
-/// - isStrokeOpen/lastPixelÀ» "Àü¿ª 1°³"·Î¸¸ °ü¸® ¡æ µ¿½Ã¿¡ ¿©·¯ ½ºÆ®·ÎÅ©°¡ µé¾î¿À¸é ¼¯ÀÓ.
+/// ëª©í‘œ:
+/// - ë„¤íŠ¸ì›Œí¬ì—ì„œ ë™ì‹œì— ì—¬ëŸ¬ ìŠ¤íŠ¸ë¡œí¬ê°€ ë“¤ì–´ì™€ë„ ì„ì´ì§€ ì•Šê²Œ key(OverlayStrokeKey)ë³„ë¡œ ìƒíƒœë¥¼ ë¶„ë¦¬
+/// - í° íˆìŠ¤í† ë¦¬(ìŠ¤ëƒ…ìƒ·) ì¬ìƒ ì‹œì—ë„ ì„±ëŠ¥ì´ ë¬´ë„ˆì§€ì§€ ì•Šë„ë¡ BeginBulk/EndBulkë¡œ Applyë¥¼ ë¬¶ì–´ì¤Œ
 /// 
-/// ÇØ°á:
-/// - key(OverlayStrokeKey)º°·Î lastPixel/hasLastPixel/»ö/µÎ²²¸¦ Dictionary·Î °ü¸®.
-/// - AddStrokePointµµ key¸¦ ¹Ş¾Æ¼­ ÇØ´ç ½ºÆ®·ÎÅ© »óÅÂ¸¸ °»½Å.
+/// ìµœì‹  IOverlayAnnotator ì¸í„°í˜ì´ìŠ¤ì— ë§ì¶˜ ë³€ê²½ì :
+/// - GetRenderSizePx() ì‚­ì œ(ì¸í„°í˜ì´ìŠ¤ì—ì„œ ì œê±°ë¨)
+/// - AddStrokePoint -> AddPoints(í‚¤, IReadOnlyList<Vector2>)
+/// - AddText -> AddLabel(labelId, normPos, text)
+/// - Clear -> ClearAll
+/// - BeginStroke ìƒ‰ íƒ€ì… Color32ë¡œ í†µì¼
 /// </summary>
 public class Texture2DOverlayAnnotator : MonoBehaviour, IOverlayAnnotator
 {
     [Header("uGUI References")]
 
-    /// <summary>µå·ÎÀ× °á°ú¸¦ Ç¥½ÃÇÒ RawImage</summary>
+    /// <summary>ë“œë¡œì‰ ê²°ê³¼ë¥¼ í‘œì‹œí•  RawImage</summary>
     [SerializeField] private RawImage targetRawImage;
 
-    /// <summary>Á¤±ÔÈ­ ÁÂÇ¥ °è»êÀ» À§ÇÑ RectTransform</summary>
+    /// <summary>ì •ê·œí™” ì¢Œí‘œ ê³„ì‚°ì„ ìœ„í•œ RectTransform</summary>
     [SerializeField] private RectTransform targetRect;
 
-    /// <summary>ScreenPointToLocalPointInRectangle º¯È¯¿¡ ÇÊ¿äÇÑ Canvas</summary>
+    /// <summary>ScreenPointToLocalPointInRectangle ë³€í™˜ì— í•„ìš”í•œ Canvas</summary>
     [SerializeField] private Canvas rootCanvas;
 
     [Header("Texture Settings")]
 
     /// <summary>
-    /// ·»´õ¸µ ÇØ»óµµ ½ºÄÉÀÏ.
-    /// - 1.0ÀÌ¸é UI Å©±â ±×´ë·Î ÅØ½ºÃ³ »ı¼º
-    /// - 0.5¸é °¡·Î/¼¼·Î Àı¹İ ÇØ»óµµ·Î »ı¼ºÇÏ¿© ¼º´É Çâ»ó
+    /// ë Œë”ë§ í•´ìƒë„ ìŠ¤ì¼€ì¼.
+    /// - 1.0ì´ë©´ UI í¬ê¸° ê·¸ëŒ€ë¡œ í…ìŠ¤ì²˜ ìƒì„±
+    /// - 0.5ë©´ ê°€ë¡œ/ì„¸ë¡œ ì ˆë°˜ í•´ìƒë„ë¡œ ìƒì„±í•˜ì—¬ ì„±ëŠ¥ í–¥ìƒ
     /// </summary>
     [Range(0.25f, 1f)]
     [SerializeField] private float resolutionScale = 0.5f;
 
-    /// <summary>Clear ½Ã Ã¤¿ï »ö(Åõ¸í Æ÷ÇÔ)</summary>
+    /// <summary>Clear ì‹œ ì±„ìš¸ ìƒ‰(íˆ¬ëª… í¬í•¨)</summary>
     [SerializeField] private Color clearColor = new Color(0, 0, 0, 0);
 
     [Header("Performance")]
 
     /// <summary>
-    /// Texture2D.Apply È£Ãâ °£°İ.
-    /// - ¸Å ÇÁ·¹ÀÓ Apply´Â ºñ½Î¹Ç·Î ÀÏÁ¤ °£°İÀ¸·Î¸¸ Àû¿ë
+    /// Texture2D.Apply í˜¸ì¶œ ê°„ê²©.
+    /// - ë§¤ í”„ë ˆì„ ApplyëŠ” ë¹„ì‹¸ë¯€ë¡œ ì¼ì • ê°„ê²©ìœ¼ë¡œë§Œ ì ìš©
     /// </summary>
     [SerializeField] private float applyInterval = 0.033f;
 
-    /// <summary>»ı¼ºµÈ ÅØ½ºÃ³</summary>
+    /// <summary>ìƒì„±ëœ í…ìŠ¤ì²˜</summary>
     private Texture2D tex;
 
-    /// <summary>ÅØ½ºÃ³ ÇÈ¼¿ ¹öÆÛ(Color32)</summary>
+    /// <summary>í…ìŠ¤ì²˜ í”½ì…€ ë²„í¼(Color32)</summary>
     private Color32[] buffer;
 
-    /// <summary>ÅØ½ºÃ³ Å©±â</summary>
+    /// <summary>í…ìŠ¤ì²˜ í¬ê¸°</summary>
     private int texW, texH;
 
-    /// <summary>È°¼º ¿©ºÎ</summary>
-    private bool active;
+    /// <summary>í™œì„± ì—¬ë¶€</summary>
+    private bool active = true;
 
-    /// <summary>UI Å©±â º¯°æ °¨Áö¿ë</summary>
+    /// <summary>UI í¬ê¸° ë³€ê²½ ê°ì§€ìš©</summary>
     private Vector2 lastRectSize;
 
-    /// <summary>´ÙÀ½ Apply °¡´ÉÇÑ ½Ã°£</summary>
+    /// <summary>ë‹¤ìŒ Apply ê°€ëŠ¥í•œ ì‹œê°„</summary>
     private float nextApplyTime;
 
-    /// <summary>¹öÆÛ º¯°æ ¿©ºÎ</summary>
+    /// <summary>ë²„í¼ ë³€ê²½ ì—¬ë¶€</summary>
     private bool dirty;
 
     /// <summary>
-    /// ½ºÆ®·ÎÅ©º° »óÅÂ(µ¿½Ã ½ºÆ®·ÎÅ© Áö¿ø).
+    /// Bulk ëª¨ë“œ ì¹´ìš´í„°.
+    /// - BeginBulk í˜¸ì¶œ ì‹œ ì¦ê°€
+    /// - EndBulk í˜¸ì¶œ ì‹œ ê°ì†Œ
+    /// - Bulk ì¤‘ì—ëŠ” Applyë¥¼ ìë™ìœ¼ë¡œ í•˜ì§€ ì•Šê³ , EndBulkì—ì„œ í•œ ë²ˆë§Œ Applyí•˜ë„ë¡ í•œë‹¤.
+    /// 
+    /// ì™œ í•„ìš”í•œê°€?
+    /// - Late Join ìŠ¤ëƒ…ìƒ·ì—ì„œ í¬ì¸íŠ¸ê°€ ìˆ˜ì²œ~ìˆ˜ë§Œê°œ ë“¤ì–´ì˜¤ë©´,
+    ///   í¬ì¸íŠ¸ë§ˆë‹¤ Applyê°€ ë°œìƒí•˜ëŠ” ìˆœê°„ í”„ë ˆì„ì´ í¬ê²Œ ëŠê¸´ë‹¤.
+    /// - Bulkë¡œ ë¬¶ìœ¼ë©´ "ë§ˆì§€ë§‰ì— í•œ ë²ˆë§Œ Apply"í•  ìˆ˜ ìˆì–´ ë¹„ìš©ì´ ê¸‰ê°í•œë‹¤.
+    /// </summary>
+    private int bulkDepth;
+
+    /// <summary>
+    /// ìŠ¤íŠ¸ë¡œí¬ë³„ ìƒíƒœ(ë™ì‹œ ìŠ¤íŠ¸ë¡œí¬ ì§€ì›).
     /// </summary>
     private struct StrokeRasterState
     {
-        /// <summary>ÇöÀç ½ºÆ®·ÎÅ© »ö</summary>
-        public Color color;
+        /// <summary>í˜„ì¬ ìŠ¤íŠ¸ë¡œí¬ ìƒ‰</summary>
+        public Color32 color;
 
-        /// <summary>ÇöÀç ½ºÆ®·ÎÅ© µÎ²²(px)</summary>
+        /// <summary>í˜„ì¬ ìŠ¤íŠ¸ë¡œí¬ ë‘ê»˜(px)</summary>
         public float widthPx;
 
-        /// <summary>ÀÌÀü ÇÈ¼¿(¶óÀÎ ¿¬°á¿ë)</summary>
+        /// <summary>ì´ì „ í”½ì…€(ë¼ì¸ ì—°ê²°ìš©)</summary>
         public Vector2Int lastPixel;
 
-        /// <summary>ÀÌÀü ÇÈ¼¿ÀÌ À¯È¿ÇÑÁö</summary>
+        /// <summary>ì´ì „ í”½ì…€ì´ ìœ íš¨í•œì§€</summary>
         public bool hasLastPixel;
     }
 
     /// <summary>
-    /// ÁøÇà ÁßÀÎ ½ºÆ®·ÎÅ© »óÅÂ ¸Ê.
-    /// - keyº°·Î lastPixelÀ» ºĞ¸®ÇØ¼­ µ¿½Ã ÀÔ·ÂÀÌ ¼¯ÀÌÁö ¾Ê°Ô ÇÑ´Ù.
+    /// ì§„í–‰ ì¤‘ì¸ ìŠ¤íŠ¸ë¡œí¬ ìƒíƒœ ë§µ.
+    /// - keyë³„ë¡œ lastPixelì„ ë¶„ë¦¬í•´ì„œ ë™ì‹œ ì…ë ¥ì´ ì„ì´ì§€ ì•Šê²Œ í•œë‹¤.
     /// </summary>
     private readonly Dictionary<OverlayStrokeKey, StrokeRasterState> activeStrokes = new();
 
-    /// <summary>ÁØºñ ¿Ï·á ¿©ºÎ</summary>
-    public bool IsReady => active && tex != null && targetRawImage != null && targetRect != null && rootCanvas != null;
+    /// <summary>ì¤€ë¹„ ì™„ë£Œ ì—¬ë¶€</summary>
+    public bool IsReady =>
+        active &&
+        tex != null &&
+        buffer != null &&
+        targetRawImage != null &&
+        targetRect != null &&
+        rootCanvas != null;
 
     private void Awake()
     {
@@ -105,18 +129,19 @@ public class Texture2DOverlayAnnotator : MonoBehaviour, IOverlayAnnotator
 
         EnsureTexture();
 
-        // dirty »óÅÂ¿¡¼­ ÀÏÁ¤ °£°İ¸¶´Ù Apply
+        // Bulk ëª¨ë“œì—ì„œëŠ” ìë™ Applyë¥¼ í•˜ì§€ ì•ŠëŠ”ë‹¤.
+        // (ìŠ¤ëƒ…ìƒ· ì¬ìƒ ê°™ì€ ëŒ€ëŸ‰ ì…ë ¥ ì¤‘ ì„±ëŠ¥ ë³´í˜¸)
+        if (bulkDepth > 0) return;
+
+        // dirty ìƒíƒœì—ì„œ ì¼ì • ê°„ê²©ë§ˆë‹¤ Apply
         if (dirty && Time.unscaledTime >= nextApplyTime)
         {
-            tex.SetPixels32(buffer);
-            tex.Apply(false, false);
-            dirty = false;
-            nextApplyTime = Time.unscaledTime + applyInterval;
+            ApplyTextureNow();
         }
     }
 
     /// <summary>
-    /// È°¼º/ºñÈ°¼º Åä±Û.
+    /// í™œì„±/ë¹„í™œì„± í† ê¸€.
     /// </summary>
     public void SetActive(bool active)
     {
@@ -130,7 +155,7 @@ public class Texture2DOverlayAnnotator : MonoBehaviour, IOverlayAnnotator
     }
 
     /// <summary>
-    /// Screen ÁÂÇ¥ -> Á¤±ÔÈ­(0~1) ÁÂÇ¥ º¯È¯.
+    /// Screen ì¢Œí‘œ -> ì •ê·œí™”(0~1) ì¢Œí‘œ ë³€í™˜.
     /// </summary>
     public bool TryScreenToNormalized(Vector2 screenPos, out Vector2 normalized)
     {
@@ -155,21 +180,44 @@ public class Texture2DOverlayAnnotator : MonoBehaviour, IOverlayAnnotator
         return true;
     }
 
+    // --------------------------------------------------------------------
+    // IOverlayAnnotator (Bulk)
+    // --------------------------------------------------------------------
+
     /// <summary>
-    /// ·»´õ¸µ ±âÁØ ÇÈ¼¿ Å©±â.
+    /// ëŒ€ëŸ‰ ì ìš© ëª¨ë“œ ì‹œì‘.
+    /// - Bulk ì¤‘ì—ëŠ” Updateì—ì„œ Applyë¥¼ í•˜ì§€ ì•ŠëŠ”ë‹¤.
+    /// - EndBulkì—ì„œ í•œ ë²ˆë§Œ Applyí•˜ì—¬ ë¹„ìš©ì„ ì¤„ì¸ë‹¤.
     /// </summary>
-    public Vector2 GetRenderSizePx()
+    public void BeginBulk()
     {
-        if (targetRect == null) return Vector2.one;
-        var r = targetRect.rect;
-        return new Vector2(Mathf.Max(1f, r.width), Mathf.Max(1f, r.height));
+        bulkDepth++;
     }
 
     /// <summary>
-    /// key ±â¹İ ½ºÆ®·ÎÅ© ½ÃÀÛ.
-    /// - ±âÁ¸ÀÇ Àü¿ª isStrokeOpen ´ë½Å, key¸¶´Ù »óÅÂ¸¦ ÀúÀåÇÑ´Ù.
+    /// ëŒ€ëŸ‰ ì ìš© ëª¨ë“œ ì¢…ë£Œ.
+    /// - BulkDepthê°€ 0ì´ ë˜ë©´, ëˆ„ì ëœ dirty ë‚´ìš©ì„ í•œ ë²ˆì— Applyí•œë‹¤.
     /// </summary>
-    public void BeginStroke(OverlayStrokeKey key, Color color, float widthPx)
+    public void EndBulk()
+    {
+        bulkDepth = Mathf.Max(0, bulkDepth - 1);
+
+        if (bulkDepth == 0 && dirty)
+        {
+            // EndBulkì—ì„œëŠ” ì¦‰ì‹œ Apply(ëŒ€ëŸ‰ ì¬ìƒì´ ëë‚œ íƒ€ì´ë°ì´ë¯€ë¡œ)
+            ApplyTextureNow();
+        }
+    }
+
+    // --------------------------------------------------------------------
+    // IOverlayAnnotator (Stroke)
+    // --------------------------------------------------------------------
+
+    /// <summary>
+    /// key ê¸°ë°˜ ìŠ¤íŠ¸ë¡œí¬ ì‹œì‘.
+    /// - ê¸°ì¡´ì˜ ì „ì—­ isStrokeOpen ëŒ€ì‹ , keyë§ˆë‹¤ ìƒíƒœë¥¼ ì €ì¥í•œë‹¤.
+    /// </summary>
+    public void BeginStroke(OverlayStrokeKey key, Color32 color, float widthPx)
     {
         if (!IsReady) return;
 
@@ -183,59 +231,74 @@ public class Texture2DOverlayAnnotator : MonoBehaviour, IOverlayAnnotator
     }
 
     /// <summary>
-    /// key ±â¹İ Á¡ Ãß°¡.
-    /// - ÇØ´ç key ½ºÆ®·ÎÅ©ÀÇ lastPixel¸¸ °»½ÅÇÏ¹Ç·Î µ¿½Ã ½ºÆ®·ÎÅ©°¡ ¼¯ÀÌÁö ¾Ê´Â´Ù.
+    /// ì—¬ëŸ¬ ì ì„ í•œ ë²ˆì— ì¶”ê°€(ë°°ì¹˜ ì²˜ë¦¬).
+    /// 
+    /// ì™œ IReadOnlyListë¡œ ë°›ë‚˜?
+    /// - ë„¤íŠ¸ì›Œí¬ ì²­í‚¹/ë°°ì¹˜ì—ì„œ í•œ ë²ˆì— ì—¬ëŸ¬ í¬ì¸íŠ¸ê°€ ë„ì°©í•œë‹¤.
+    /// - í¬ì¸íŠ¸ë§ˆë‹¤ í•¨ìˆ˜ í˜¸ì¶œí•˜ëŠ” ê²ƒë³´ë‹¤, í•œ ë²ˆì— ì²˜ë¦¬í•˜ëŠ” í¸ì´ ì˜¤ë²„í—¤ë“œê°€ ì¤„ì–´ë“ ë‹¤.
     /// </summary>
-    public void AddStrokePoint(OverlayStrokeKey key, Vector2 normalized)
+    public void AddPoints(OverlayStrokeKey key, IReadOnlyList<Vector2> normPoints)
     {
         if (!IsReady) return;
+        if (normPoints == null || normPoints.Count == 0) return;
 
         if (!activeStrokes.TryGetValue(key, out var st))
             return;
 
-        var p = NormalizedToPixel(normalized);
-
         int radius = Mathf.Max(1, Mathf.RoundToInt((st.widthPx * resolutionScale) * 0.5f));
 
-        if (!st.hasLastPixel)
+        for (int i = 0; i < normPoints.Count; i++)
         {
-            DrawCircle(p, radius, st.color);
-            st.lastPixel = p;
-            st.hasLastPixel = true;
-            activeStrokes[key] = st;
+            var p = NormalizedToPixel(normPoints[i]);
 
-            MarkDirty();
-            return;
+            if (!st.hasLastPixel)
+            {
+                // ì²« ì ì€ ì›ìœ¼ë¡œ ì°ê¸°
+                DrawCircle(p, radius, st.color);
+                st.lastPixel = p;
+                st.hasLastPixel = true;
+            }
+            else
+            {
+                // ì´í›„ ì ì€ ë¼ì¸ìœ¼ë¡œ ì—°ê²°
+                DrawLine(st.lastPixel, p, radius, st.color);
+                st.lastPixel = p;
+            }
         }
 
-        DrawLine(st.lastPixel, p, radius, st.color);
-
-        st.lastPixel = p;
         activeStrokes[key] = st;
-
         MarkDirty();
     }
 
     /// <summary>
-    /// key ±â¹İ ½ºÆ®·ÎÅ© Á¾·á.
+    /// key ê¸°ë°˜ ìŠ¤íŠ¸ë¡œí¬ ì¢…ë£Œ.
     /// </summary>
     public void EndStroke(OverlayStrokeKey key)
     {
         activeStrokes.Remove(key);
     }
 
+    // --------------------------------------------------------------------
+    // IOverlayAnnotator (Label / Clear)
+    // --------------------------------------------------------------------
+
     /// <summary>
-    /// ÅØ½ºÆ® Ãß°¡.
-    /// - ÅØ½ºÃ³¿¡ Á÷Á¢ ±ÛÀÚ¸¦ ±Á´Â ´ë½Å UI ¿ÀºêÁ§Æ®·Î ¶ç¿ì´Â ¹æ½Ä(»ùÇÃ).
+    /// ë¼ë²¨ ì¶”ê°€.
+    /// - í…ìŠ¤ì²˜ì— ê¸€ìë¥¼ êµ½ì§€ ì•Šê³ , UI(TextMeshProUGUI)ë¡œ ì˜¬ë¦¬ëŠ” ë°©ì‹.
+    /// 
+    /// labelIdë¥¼ ë°›ëŠ” ì´ìœ :
+    /// - ë„¤íŠ¸ì›Œí¬ì—ì„œ ë¼ë²¨ì„ ê³ ìœ í•˜ê²Œ ì‹ë³„í•˜ë ¤ë©´ IDê°€ í•„ìš”í•˜ë‹¤.
+    /// - ì¶”í›„ ìˆ˜ì •/ì‚­ì œ ê¸°ëŠ¥ í™•ì¥ ì‹œ labelIdê°€ í‚¤ë¡œ ì“°ì¸ë‹¤.
     /// </summary>
-    public void AddText(Vector2 normalized, string text)
+    public void AddLabel(int labelId, Vector2 normPos, string text)
     {
         if (!active || targetRect == null) return;
 
-        var go = new GameObject("OverlayText", typeof(RectTransform));
+        // ê°„ë‹¨ êµ¬í˜„: labelIdë¡œ ì´ë¦„ ì§€ì •(ì¶”í›„ ê°±ì‹ /ì‚­ì œì— í™œìš© ê°€ëŠ¥)
+        var go = new GameObject($"OverlayLabel_{labelId}", typeof(RectTransform));
         go.transform.SetParent(targetRect, false);
 
-        var t = go.AddComponent<TMPro.TextMeshProUGUI>();
+        var t = go.AddComponent<TextMeshProUGUI>();
         t.text = text;
         t.fontSize = 32;
         t.color = Color.white;
@@ -246,24 +309,27 @@ public class Texture2DOverlayAnnotator : MonoBehaviour, IOverlayAnnotator
 
         var rect = targetRect.rect;
         rt.anchoredPosition = new Vector2(
-            Mathf.Lerp(rect.xMin, rect.xMax, normalized.x),
-            Mathf.Lerp(rect.yMin, rect.yMax, normalized.y)
+            Mathf.Lerp(rect.xMin, rect.xMax, normPos.x),
+            Mathf.Lerp(rect.yMin, rect.yMax, normPos.y)
         );
 
         rt.sizeDelta = new Vector2(400, 80);
     }
 
     /// <summary>
-    /// ÀüÃ¼ »èÁ¦.
-    /// - ÅØ½ºÃ³ ¹öÆÛ¸¦ clearColor·Î Ã¤¿ò.
-    /// - activeStrokesµµ ¸ğµÎ ºñ¿ò.
+    /// ì „ì²´ ì‚­ì œ.
+    /// - í…ìŠ¤ì²˜ ë²„í¼ë¥¼ clearColorë¡œ ì±„ì›€.
+    /// - ì§„í–‰ ì¤‘ ìŠ¤íŠ¸ë¡œí¬ ìƒíƒœë„ ëª¨ë‘ ë¹„ì›€.
     /// </summary>
-    public void Clear()
+    public void ClearAll()
     {
         EnsureTexture();
         if (buffer == null) return;
 
         activeStrokes.Clear();
+
+        // ë¼ë²¨ë„ í•¨ê»˜ ì œê±°(ì›í•˜ë©´ ë¼ë²¨ ìœ ì§€ ì •ì±…ìœ¼ë¡œ ë°”ê¿€ ìˆ˜ ìˆìŒ)
+        ClearAllLabels();
 
         var c = (Color32)clearColor;
         for (int i = 0; i < buffer.Length; i++)
@@ -276,14 +342,31 @@ public class Texture2DOverlayAnnotator : MonoBehaviour, IOverlayAnnotator
         nextApplyTime = Time.unscaledTime + applyInterval;
     }
 
+    private void ClearAllLabels()
+    {
+        if (targetRect == null) return;
+
+        // OverlayLabel_ ë¡œ ì‹œì‘í•˜ëŠ” ê²ƒë§Œ ì œê±°(ë‹¤ë¥¸ UI ìš”ì†Œ ë³´í˜¸)
+        for (int i = targetRect.childCount - 1; i >= 0; i--)
+        {
+            var child = targetRect.GetChild(i);
+            if (child != null && child.name.StartsWith("OverlayLabel_"))
+                Destroy(child.gameObject);
+        }
+    }
+
+    // --------------------------------------------------------------------
+    // Texture creation / apply
+    // --------------------------------------------------------------------
+
     /// <summary>
-    /// UI Å©±â¿¡ ¸ÂÃç ÅØ½ºÃ³¸¦ »ı¼º/Àç»ı¼º.
+    /// UI í¬ê¸°ì— ë§ì¶° í…ìŠ¤ì²˜ë¥¼ ìƒì„±/ì¬ìƒì„±.
     /// </summary>
     private void EnsureTexture()
     {
         if (targetRect == null || targetRawImage == null) return;
 
-        var size = GetRenderSizePx();
+        var size = GetTargetRectSizePx();
         if (tex != null && size == lastRectSize) return;
 
         lastRectSize = size;
@@ -298,11 +381,58 @@ public class Texture2DOverlayAnnotator : MonoBehaviour, IOverlayAnnotator
         buffer = new Color32[texW * texH];
         targetRawImage.texture = tex;
 
-        Clear();
+        ClearAll();
     }
 
     /// <summary>
-    /// Á¤±ÔÈ­(0~1) ÁÂÇ¥ -> ÅØ½ºÃ³ ÇÈ¼¿ ÁÂÇ¥.
+    /// targetRectì˜ ì‹¤ì œ í”½ì…€ í¬ê¸°(ìµœì†Œ 1 ë³´ì¥).
+    /// - ì˜ˆì „ì—” GetRenderSizePx()ë¥¼ ì¸í„°í˜ì´ìŠ¤ë¡œ ë…¸ì¶œí–ˆì§€ë§Œ,
+    ///   ì§€ê¸ˆì€ ë‚´ë¶€ì—ì„œë§Œ ì“°ë©´ ë˜ë¯€ë¡œ privateë¡œ ë‘”ë‹¤.
+    /// </summary>
+    private Vector2 GetTargetRectSizePx()
+    {
+        if (targetRect == null) return Vector2.one;
+        var r = targetRect.rect;
+        return new Vector2(Mathf.Max(1f, r.width), Mathf.Max(1f, r.height));
+    }
+
+    /// <summary>
+    /// dirty ìƒíƒœ í‘œì‹œ.
+    /// - Updateì—ì„œ ì¼ì • ê°„ê²©ë§ˆë‹¤ Applyí•˜ë„ë¡ í•¨.
+    /// - Bulk ëª¨ë“œë¼ë©´ EndBulkì—ì„œ í•œ ë²ˆë§Œ Apply.
+    /// </summary>
+    private void MarkDirty()
+    {
+        dirty = true;
+
+        // Bulk ì¤‘ì—” Applyë¥¼ ë¯¸ë£¨ê³ , í‰ìƒì‹œì—” Updateì—ì„œ applyIntervalë§ˆë‹¤ ì²˜ë¦¬
+        if (bulkDepth > 0) return;
+
+        // ë„ˆë¬´ ì˜¤ë˜ ê¸°ë‹¤ë¦¬ë©´ UXê°€ ë‹µë‹µí•  ìˆ˜ ìˆì–´,
+        // sendIntervalê³¼ ë§ì¶°ì„œ í•„ìš”í•˜ë©´ ì—¬ê¸°ì„œ "ì¦‰ì‹œ Apply" ì •ì±…ìœ¼ë¡œ ë°”ê¿€ ìˆ˜ë„ ìˆìŒ.
+    }
+
+    /// <summary>
+    /// ì¦‰ì‹œ í…ìŠ¤ì²˜ì— ì ìš©.
+    /// - Apply ë¹„ìš©ì´ í¬ë¯€ë¡œ í˜¸ì¶œ ë¹ˆë„ë¥¼ ì œì–´í•´ì•¼ í•œë‹¤.
+    /// </summary>
+    private void ApplyTextureNow()
+    {
+        if (tex == null || buffer == null) return;
+
+        tex.SetPixels32(buffer);
+        tex.Apply(false, false);
+
+        dirty = false;
+        nextApplyTime = Time.unscaledTime + applyInterval;
+    }
+
+    // --------------------------------------------------------------------
+    // Raster helpers
+    // --------------------------------------------------------------------
+
+    /// <summary>
+    /// ì •ê·œí™”(0~1) ì¢Œí‘œ -> í…ìŠ¤ì²˜ í”½ì…€ ì¢Œí‘œ.
     /// </summary>
     private Vector2Int NormalizedToPixel(Vector2 norm)
     {
@@ -312,18 +442,9 @@ public class Texture2DOverlayAnnotator : MonoBehaviour, IOverlayAnnotator
     }
 
     /// <summary>
-    /// ¹öÆÛ º¯°æ Ç¥½Ã.
-    /// - Update¿¡¼­ ÀÏÁ¤ ÁÖ±â¸¶´Ù ApplyÇÏµµ·Ï ÇÔ.
+    /// Bresenham ê¸°ë°˜ ë¼ì¸ + ì› ë¸ŒëŸ¬ì‹œë¡œ ë‘ê»˜ ì ìš©.
     /// </summary>
-    private void MarkDirty()
-    {
-        dirty = true;
-    }
-
-    /// <summary>
-    /// Bresenham ±â¹İ ¶óÀÎ + ¿ø ºê·¯½Ã·Î µÎ²² Àû¿ë.
-    /// </summary>
-    private void DrawLine(Vector2Int a, Vector2Int b, int radius, Color col)
+    private void DrawLine(Vector2Int a, Vector2Int b, int radius, Color32 col)
     {
         int x0 = a.x, y0 = a.y;
         int x1 = b.x, y1 = b.y;
@@ -344,13 +465,12 @@ public class Texture2DOverlayAnnotator : MonoBehaviour, IOverlayAnnotator
     }
 
     /// <summary>
-    /// ¿ø ºê·¯½Ã·Î ÇÈ¼¿ ¹öÆÛ¿¡ »öÀ» Âï´Â´Ù.
+    /// ì› ë¸ŒëŸ¬ì‹œë¡œ í”½ì…€ ë²„í¼ì— ìƒ‰ì„ ì°ëŠ”ë‹¤.
     /// </summary>
-    private void DrawCircle(Vector2Int center, int r, Color col)
+    private void DrawCircle(Vector2Int center, int r, Color32 col)
     {
         int cx = center.x, cy = center.y;
         int r2 = r * r;
-        var c = (Color32)col;
 
         for (int y = -r; y <= r; y++)
         {
@@ -365,7 +485,7 @@ public class Texture2DOverlayAnnotator : MonoBehaviour, IOverlayAnnotator
                 if (px < 0 || px >= texW) continue;
 
                 int idx = py * texW + px;
-                buffer[idx] = c;
+                buffer[idx] = col;
             }
         }
     }

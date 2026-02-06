@@ -1,120 +1,90 @@
+ï»¿using System;
 using System.Collections.Generic;
 using Fusion;
 using Fusion.Sockets;
 using UnityEngine;
 
 /// <summary>
-/// Fusion ³×Æ®¿öÅ© ·¯³Ê¸¦ ½ÃÀÛÇÏ°í, Äİ¹é ±â¹İÀ¸·Î ¼¼¼Ç »óÅÂ¸¦ °üÂûÇÏ´Â ºÎÆ®½ºÆ®·¦.
+/// "ì”¬ì— ë°°ì¹˜ëœ Hub(Scene NetworkObject)"ë¥¼ ì‚¬ìš©í•˜ëŠ” Shared Mode ë¶€íŠ¸ìŠ¤íŠ¸ë©.
 ///
-/// ============================
-/// Shared Mode ±âÃÊ °³³ä
-/// ============================
-/// - GameMode.Shared:
-///   º°µµÀÇ Àü¿ë ¼­¹ö ÇÁ·Î¼¼½º ¾øÀÌ, Âü°¡ÀÚ Áß 1¸íÀÌ "StateAuthority(¸¶½ºÅÍ)" ¿ªÇÒÀ» ¸Ã½À´Ï´Ù.
-///   ÀÌ ¸¶½ºÅÍ´Â Photon Cloud°¡ ¾Æ´Ï¶ó "Âü°¡ÀÚ Áß ÇÑ Å¬¶óÀÌ¾ğÆ®"ÀÔ´Ï´Ù.
-///
-/// - SharedModeMasterClient:
-///   ÇöÀç StateAuthority¸¦ °¡Áø Å¬¶óÀÌ¾ğÆ®.
-///   º¸Åë "¸ÕÀú µé¾î¿Â »ç¶÷"ÀÌ ¸¶½ºÅÍ°¡ µÇÁö¸¸,
-///   ¸¶½ºÅÍ°¡ ³ª°¡¸é ³²¾Æ ÀÖ´Â »ç¶÷ Áß ÇÑ ¸íÀÌ »õ ¸¶½ºÅÍ°¡ µË´Ï´Ù.
-///
-/// ============================
-/// º» ÇÁ·ÎÁ§Æ®ÀÇ ÇÙ½É Á¤Ã¥
-/// ============================
-/// - AnnotationHub´Â ¾À ¿ÀºêÁ§Æ®(Scene Network Object)·Î À¯ÁöÇÑ´Ù.
-/// - ¸¶½ºÅÍ°¡ ¹Ù²î¾îµµ Hub´Â »ç¶óÁöÁö ¾Ê´Â´Ù(±ÇÇÑ¸¸ ¹Ù²ñ).
-///
-/// µû¶ó¼­ BootstrapÀº Hub¸¦ SpawnÇÏÁö ¾Ê½À´Ï´Ù.
-/// (Spawn ¹æ½ÄÀº ¸¶½ºÅÍ ÀÌÅ» ½Ã Despawn ÀÌ½´¸¦ ¸¸µé °¡´É¼ºÀÌ Ä¿¼­ ½Ç¹«ÀûÀ¸·Î ºñÃßÃµ)
+/// í¬ì¸íŠ¸:
+/// 1) HubëŠ” í”„ë¦¬íŒ¹ Spawní•˜ì§€ ì•ŠëŠ”ë‹¤. (ì”¬ì— ì´ë¯¸ ì¡´ì¬)
+/// 2) Scene Objectê°€ ë„¤íŠ¸ì›Œí¬ì—ì„œ í™œì„±í™”ë˜ë ¤ë©´ SceneManagerê°€ í•„ìš”í•  ìˆ˜ ìˆë‹¤.
+/// 3) Shared Modeì—ì„œ ë§ˆìŠ¤í„°ê°€ ë°”ë€Œì–´ë„ Hubê°€ ìœ ì§€ë˜ë ¤ë©´
+///    Hub NetworkObjectì˜ "Destroy When State Authority Leaves"ë¥¼ êº¼ì•¼ í•œë‹¤.
+/// 4) AppId(Photon Fusion) ì„¤ì •ì´ ë¹„ì–´ìˆìœ¼ë©´ StartGame ìì²´ê°€ ì‹¤íŒ¨í•œë‹¤.
 /// </summary>
-public class FusionBootstrap : MonoBehaviour, INetworkRunnerCallbacks
+public class FusionBootstrapSceneHub : MonoBehaviour, INetworkRunnerCallbacks
 {
-    [Header("Session")]
-    [SerializeField] private string sessionName = "AnnotationRoom";
+    [Header("Fusion")]
+    [SerializeField] private NetworkRunner runner;
 
-    private NetworkRunner runner;
+    [Tooltip("Shared ë£¸ ì´ë¦„")]
+    [SerializeField] private string roomName = "OverlayRoom";
 
     private async void Start()
     {
-        runner = gameObject.AddComponent<NetworkRunner>();
+        if (runner == null)
+            runner = gameObject.AddComponent<NetworkRunner>();
 
-        // µå·ÎÀ×Àº "ÀÔ·Â ¿¹Ãø" °°Àº °Ô ÇÊ¿ä ¾øÀ¸¹Ç·Î ProvideInput=false·Î µÓ´Ï´Ù.
-        runner.ProvideInput = false;
+        // Scene Object íŒŒì´í”„ë¼ì¸ì„ ìœ„í•´ ê¸°ë³¸ SceneManagerë¥¼ ë¶™ì—¬ì¤€ë‹¤.
+        // (ì´ë¯¸ ë¶™ì–´ ìˆìœ¼ë©´ ì¤‘ë³µ ì¶”ê°€ ì•ˆ í•¨)
+        if (runner.GetComponent<NetworkSceneManagerDefault>() == null)
+            runner.gameObject.AddComponent<NetworkSceneManagerDefault>();
 
-        // Äİ¹é µî·Ï(¾÷µ¥ÀÌÆ® Æú¸µ ´ë½Å Äİ¹é ±â¹İÀ¸·Î °üÂû)
+        runner.ProvideInput = true;
         runner.AddCallbacks(this);
 
-        // ¾À ³×Æ®¿öÅ© ¿ÀºêÁ§Æ®¸¦ °ü¸®ÇÏ´Â ±âº» SceneManager
-        var sceneManager = gameObject.AddComponent<NetworkSceneManagerDefault>();
-
-        var result = await runner.StartGame(new StartGameArgs
+        var args = new StartGameArgs
         {
             GameMode = GameMode.Shared,
-            SessionName = sessionName,
-            SceneManager = sceneManager,
-            Scene = SceneRef.FromIndex(0)
-        });
+            SessionName = roomName,
+
+            // ì¤‘ìš”: Scene Object(ì”¬ì— ìˆëŠ” NetworkObject) ì‚¬ìš© ì‹œ ë³´í†µ í•„ìš”
+            SceneManager = runner.GetComponent<NetworkSceneManagerDefault>(),
+
+            // ì”¬ buildIndexë¥¼ ë„£ì–´ Scene ë¡œë”©/ë™ê¸° íŒŒì´í”„ë¼ì¸ì„ í™•ì‹¤íˆ íƒ„ë‹¤
+            Scene = SceneRef.FromIndex(0),
+        };
+
+        var result = await runner.StartGame(args);
+        Debug.Log($"[FusionBootstrapSceneHub] StartGame ok={result.Ok}");
 
         if (!result.Ok)
         {
-            Debug.LogError($"Fusion StartGame failed: {result.ShutdownReason}");
+            Debug.LogError("[FusionBootstrapSceneHub] StartGame failed. (AppId ë¹„ì—ˆëŠ”ì§€ / ë„¤íŠ¸ì›Œí¬ ì„¤ì • í™•ì¸)");
             return;
         }
 
-        Debug.Log($"[FusionBootstrap] StartGame OK. Session={sessionName}, LocalPlayer={runner.LocalPlayer}");
+        // ì”¬ì— Hubê°€ ì‹¤ì œë¡œ ì¡´ì¬í•˜ëŠ”ì§€ í™•ì¸(ë…¼ë¦¬ ì²´í¬ìš©)
+        var hub = FindFirstObjectByType<AnnotationHubOptimized>();
+        if (hub == null)
+            Debug.LogError("[FusionBootstrapSceneHub] Sceneì— AnnotationHubOptimizedê°€ ì—†ìŠµë‹ˆë‹¤. Hub ì˜¤ë¸Œì íŠ¸ê°€ ì”¬ì— ìˆì–´ì•¼ í•©ë‹ˆë‹¤.");
+        else
+            Debug.Log("[FusionBootstrapSceneHub] Scene Hub found. ë„¤íŠ¸ì›Œí¬ ìŠ¤í°ì€ Hubì˜ Spawned()ì—ì„œ í™•ì¸í•˜ì„¸ìš”.");
     }
 
-    // ============================
-    // INetworkRunnerCallbacks
-    // ============================
+    // --------------------------------------------------------------------
+    // INetworkRunnerCallbacks (í•„ìˆ˜ êµ¬í˜„: ë²„ì „ë³„ë¡œ ë©¤ë²„ê°€ ëŠ˜ì–´ë‚¨)
+    // --------------------------------------------------------------------
 
-    public void OnPlayerJoined(NetworkRunner runner, PlayerRef player)
-    {
-        Debug.Log($"[Fusion] adding player [{player}] (Local={runner.LocalPlayer}, IsMaster={runner.IsSharedModeMasterClient})");
-        // Hub´Â Scene ObjectÀÌ¹Ç·Î ¿©±â¼­ Spawn/Respawn ·ÎÁ÷ÀÌ ÇÊ¿ä ¾ø½À´Ï´Ù.
-        // Late Join ½º³À¼¦Àº AnnotationHub.Spawned()¿¡¼­ RequestSnapshot()ÀÌ ÀÚµ¿ È£ÃâµË´Ï´Ù.
-    }
-
-    public void OnPlayerLeft(NetworkRunner runner, PlayerRef player)
-    {
-        Debug.Log($"[Fusion] player left [{player}] (Local={runner.LocalPlayer}, IsMaster={runner.IsSharedModeMasterClient})");
-        // ¸¶½ºÅÍ°¡ ³ª°¡¸é IsSharedModeMasterClient°¡ ´Ù¸¥ Å¬¶ó¿¡¼­ true°¡ µÉ ¼ö ÀÖ½À´Ï´Ù.
-        // ÇÏÁö¸¸ È÷½ºÅä¸®´Â ¸ğµç Å¬¶óÀÌ¾ğÆ®¿¡ ´©ÀûµÇ¾î ÀÖÀ¸¹Ç·Î,
-        // »õ ¸¶½ºÅÍµµ ½º³À¼¦À» Á¤»óÀûÀ¸·Î Á¦°øÇÒ ¼ö ÀÖ½À´Ï´Ù.
-    }
-
-    public void OnShutdown(NetworkRunner runner, ShutdownReason shutdownReason)
-    {
-        Debug.LogWarning($"[Fusion] shutdown: {shutdownReason}");
-    }
-
-    public void OnDisconnectedFromServer(NetworkRunner runner, NetDisconnectReason reason)
-    {
-        Debug.LogWarning($"[Fusion] disconnected: {reason}");
-    }
-
-    public void OnConnectedToServer(NetworkRunner runner)
-    {
-        Debug.Log($"[Fusion] connected to server.");
-    }
-
-    public void OnConnectFailed(NetworkRunner runner, NetAddress remoteAddress, NetConnectFailedReason reason)
-    {
-        Debug.LogError($"[Fusion] connect failed: {remoteAddress} reason={reason}");
-    }
-
+    public void OnPlayerJoined(NetworkRunner runner, PlayerRef player) { }
+    public void OnPlayerLeft(NetworkRunner runner, PlayerRef player) { }
     public void OnInput(NetworkRunner runner, NetworkInput input) { }
     public void OnInputMissing(NetworkRunner runner, PlayerRef player, NetworkInput input) { }
+    public void OnShutdown(NetworkRunner runner, ShutdownReason shutdownReason) { }
+    public void OnConnectedToServer(NetworkRunner runner) { }
+    public void OnDisconnectedFromServer(NetworkRunner runner, NetDisconnectReason reason) { }
+    public void OnConnectRequest(NetworkRunner runner, NetworkRunnerCallbackArgs.ConnectRequest request, byte[] token) { }
+    public void OnConnectFailed(NetworkRunner runner, NetAddress remoteAddress, NetConnectFailedReason reason) { }
     public void OnUserSimulationMessage(NetworkRunner runner, SimulationMessagePtr message) { }
     public void OnSessionListUpdated(NetworkRunner runner, List<SessionInfo> sessionList) { }
     public void OnCustomAuthenticationResponse(NetworkRunner runner, Dictionary<string, object> data) { }
     public void OnHostMigration(NetworkRunner runner, HostMigrationToken hostMigrationToken) { }
-    public void OnReliableDataReceived(NetworkRunner runner, PlayerRef player, ReliableKey key, System.ArraySegment<byte> data) { }
+    public void OnReliableDataReceived(NetworkRunner runner, PlayerRef player, ReliableKey key, ArraySegment<byte> data) { }
     public void OnReliableDataProgress(NetworkRunner runner, PlayerRef player, ReliableKey key, float progress) { }
     public void OnSceneLoadDone(NetworkRunner runner) { }
     public void OnSceneLoadStart(NetworkRunner runner) { }
     public void OnObjectEnterAOI(NetworkRunner runner, NetworkObject obj, PlayerRef player) { }
     public void OnObjectExitAOI(NetworkRunner runner, NetworkObject obj, PlayerRef player) { }
-
-    public void OnConnectRequest(NetworkRunner runner, NetworkRunnerCallbackArgs.ConnectRequest request, byte[] token) { }
 }

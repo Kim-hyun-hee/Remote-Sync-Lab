@@ -1,97 +1,125 @@
+ï»¿using System;
 using System.Collections.Generic;
 using Fusion;
 using UnityEngine;
 
 /// <summary>
-/// ³×Æ®¿öÅ© »ó¿¡¼­ µå·ÎÀ× ÀÌº¥Æ®¸¦ Áß°è/ÀúÀå/Àç»ıÇÏ´Â Çãºê(NetworkBehaviour).
+/// ë„¤íŠ¸ì›Œí¬ ë“œë¡œì‰ í—ˆë¸Œ(ìµœì í™” + seq ì¬ì •ë ¬ + Begin ì´ì „ Points ë³´ê´€).
 ///
-/// ============================
-/// ¿Ö "¾À ¿ÀºêÁ§Æ®"¿©¾ß ÇÏ³ª?
-/// ============================
-/// Shared Mode¿¡¼­ ¸¶½ºÅÍ(SharedModeMasterClient)°¡ ³ª°¡¸é,
-/// "¸¶½ºÅÍ°¡ SpawnÇÑ NetworkObject"´Â ÇÔ²² DespawnµÇ´Â °æ¿ì°¡ ÈçÇÕ´Ï´Ù.
-/// (Æ¯È÷ ¸¶½ºÅÍ°¡ StateAuthority¸¦ °¡Áø ¿ÀºêÁ§Æ®´Â ¼¼¼Ç ³»¿¡¼­ À¯Áö°¡ ºÒ¾ÈÁ¤ÇØÁú ¼ö ÀÖÀ½)
+/// ëª©í‘œ:
+/// 1) ì¤‘ë³µ/ì—­ìˆœ/ìœ ì‹¤ì— ê°•í•˜ê²Œ(ìµœëŒ€í•œ "ê·¸ë ¤ì§€ê²Œ") ë§Œë“¤ê¸°
+/// 2) Addon ì—†ì´ Fusion ë¬´ë£Œë²„ì „ RPCë¡œ ê°€ëŠ¥í•œ ë²”ìœ„ì—ì„œ ì•ˆì •ì„±/ì„±ëŠ¥ ê· í˜• ì¡ê¸°
 ///
-/// ±×·¡¼­ Hub´Â "¾À¿¡ °íÁ¤µÈ NetworkObject(Scene Object)"·Î µÎ´Â °Ô ½Ç¹«ÀûÀ¸·Î ¾ÈÀüÇÕ´Ï´Ù.
-/// - ¸¶½ºÅÍ°¡ ¹Ù²î¾îµµ ¿ÀºêÁ§Æ®´Â »ì¾Æ ÀÖ°í
-/// - StateAuthority¸¸ »õ·Î¿î ¸¶½ºÅÍ·Î ³Ñ¾î°©´Ï´Ù.
+/// í•µì‹¬ ì „ëµ:
+/// - per-author seq ì¬ì •ë ¬ ë²„í¼(SortedDictionary)ë¡œ out-of-orderë¥¼ "ìˆœì„œëŒ€ë¡œ ì²˜ë¦¬"
+/// - strokeë³„ PendingStrokeë¥¼ ë‘¬ì„œ Beginë³´ë‹¤ Points/Endê°€ ë¨¼ì € ì™€ë„ "ë³´ê´€ í›„ ì¬ìƒ"
+/// - seq ê°­ì´ ì˜¤ë˜ ì§€ì†ë˜ë©´ íƒ€ì„ì•„ì›ƒìœ¼ë¡œ ìŠ¤í‚µ(ë²„í¼ê°€ ì˜ì›íˆ ë©ˆì¶”ëŠ” ê²ƒ ë°©ì§€)
 ///
-/// ============================
-/// È÷½ºÅä¸® Á¤Ã¥(°¡Àå Áß¿ä)
-/// ============================
-/// ÀÌ Hub´Â µå·ÎÀ× È÷½ºÅä¸®¸¦ "¸¶½ºÅÍ¸¸" ÀúÀåÇÏÁö ¾Ê½À´Ï´Ù.
-/// ¸ğµç Å¬¶óÀÌ¾ğÆ®°¡ µ¿ÀÏÇÑ È÷½ºÅä¸®¸¦ ´©ÀûÇÕ´Ï´Ù.
-///
-/// ÀÌÀ¯:
-/// - ¸¶½ºÅÍ°¡ ¹Ù²î´Â ¼ø°£, "¸¶½ºÅÍ ·ÎÄÃ ¸Ş¸ğ¸®¿¡¸¸ ÀÖ´ø È÷½ºÅä¸®"´Â »ç¶óÁı´Ï´Ù.
-/// - Late Join ½º³À¼¦Àº ¸¶½ºÅÍ°¡ º¸³»´Âµ¥, ¸¶½ºÅÍ°¡ ¹Ù²î¾îµµ °è¼Ó µ¿ÀÛÇÏ·Á¸é
-///   »õ ¸¶½ºÅÍµµ µ¿ÀÏÇÑ È÷½ºÅä¸®¸¦ ÀÌ¹Ì °¡Áö°í ÀÖ¾î¾ß ÇÕ´Ï´Ù.
-///
-/// ±¸Çö ¹æ½Ä:
-/// - ½Ç½Ã°£ µå·ÎÀ× RPC´Â InvokeLocal=false·Î À¯ÁöÇÕ´Ï´Ù.
-///   Áï "º¸³½ »ç¶÷"Àº RPC¸¦ ´Ù½Ã ¹ŞÁö ¾Ê½À´Ï´Ù.
-/// - µû¶ó¼­ "º¸³½ »ç¶÷"Àº SendXXX()¿¡¼­ ·ÎÄÃ È÷½ºÅä¸®¸¦ Á÷Á¢ ´©ÀûÇÕ´Ï´Ù.
-/// - "¹Ş´Â »ç¶÷µé"Àº RPC ÇÚµé·¯¿¡¼­ ·ÎÄÃ È÷½ºÅä¸®¸¦ ´©ÀûÇÕ´Ï´Ù.
-/// °á°úÀûÀ¸·Î ¸ğµç Å¬¶óÀÌ¾ğÆ®ÀÇ storedStrokes/storedLabels´Â µ¿ÀÏÇÏ°Ô µË´Ï´Ù.
-///
-/// ============================
-/// Late Join Á¤Ã¥
-/// ============================
-/// - Late Join ½Ã, Âü°¡ÀÚ´Â ÇöÀç StateAuthority(¸¶½ºÅÍ)¿¡°Ô ½º³À¼¦À» ¿äÃ»ÇÕ´Ï´Ù.
-/// - ¸¶½ºÅÍ´Â ÀÚ½ÅÀÇ ·ÎÄÃ È÷½ºÅä¸®¸¦ ±â¹İÀ¸·Î ½º³À¼¦À» ±¸¼ºÇØ Âü°¡ÀÚ¿¡°Ô¸¸ Àü¼ÛÇÕ´Ï´Ù.
-/// - È÷½ºÅä¸®´Â ¸ğµç Å¬¶óÀÌ¾ğÆ®°¡ µ¿ÀÏÇÏ¹Ç·Î, ¸¶½ºÅÍ°¡ ¹Ù²î¾îµµ ½º³À¼¦ ±â´ÉÀº °è¼ÓµË´Ï´Ù.
+/// ì£¼ì˜:
+/// - ì™„ì „í•œ ì‹ ë¢°ì„±(ACK/ì¬ì „ì†¡)ê¹Œì§€ëŠ” êµ¬í˜„í•˜ì§€ ì•ŠëŠ”ë‹¤(ë¬´ë£Œ/ê°„ë‹¨ ìš´ì˜ ëª©ì ).
+/// - ëŒ€ì‹  "ìœ ì‹¤ë˜ë”ë¼ë„ ìµœëŒ€í•œ ê·¸ë ¤ì§€ê³ , Late Join ìŠ¤ëƒ…ìƒ·ìœ¼ë¡œ ë³µêµ¬" ë°©í–¥.
 /// </summary>
-public class AnnotationHub : NetworkBehaviour
+public class AnnotationHubOptimized : NetworkBehaviour
 {
-    /// <summary>
-    /// ·±Å¸ÀÓ ½Ì±ÛÅÏ(ÆíÀÇ¿ë).
-    /// - Scene ObjectÀÌ¹Ç·Î º¸Åë Ç×»ó 1°³¸¸ Á¸ÀçÇÏ°Ô ±¸¼ºÇÕ´Ï´Ù.
-    /// </summary>
-    public static AnnotationHub Instance { get; private set; }
+    public static AnnotationHubOptimized Instance { get; private set; }
 
-    /// <summary>
-    /// ½ÇÁ¦ ·»´õ¸µ ±¸ÇöÃ¼(UI Toolkit / Texture2D µî).
-    /// </summary>
     private IOverlayAnnotator annotator;
-
-    /// <summary>
-    /// ³×Æ®¿öÅ© ÁØºñ ¿©ºÎ.
-    /// - Spawned ÀÌÈÄ Runner/Object°¡ À¯È¿ÇØÁı´Ï´Ù.
-    /// </summary>
     public bool IsNetworkReady => Runner != null && Object != null;
 
-    // ============================
-    // ÀúÀå¼Ò(È÷½ºÅä¸®) - ¸ğµç Å¬¶óÀÌ¾ğÆ®°¡ µ¿ÀÏÇÏ°Ô ´©Àû
-    // ============================
+    // ---------------------------------------------------------------------
+    // ì„¤ì •ê°’(íŠœë‹ í¬ì¸íŠ¸)
+    // ---------------------------------------------------------------------
 
-    /// <summary>
-    /// ´©ÀûµÈ ½ºÆ®·ÎÅ© È÷½ºÅä¸®.
-    /// - ¸ğµç Å¬¶óÀÌ¾ğÆ®°¡ µ¿ÀÏÇÑ ¼ø¼­/³»¿ëÀ¸·Î ´©ÀûµË´Ï´Ù.
-    /// - Late Join ½º³À¼¦Àº ÀÌ ¸®½ºÆ®·Î Àç±¸¼ºÇÕ´Ï´Ù.
-    /// </summary>
-    private readonly List<StoredStroke> storedStrokes = new();
+    [Header("Out-of-order Reorder")]
+    [Tooltip("seq gapì´ ì´ ì‹œê°„ ì´ìƒ ìœ ì§€ë˜ë©´(ì˜ˆ: 10ì´ ì•ˆ ì˜¤ëŠ”ë° 11,12ë§Œ ìŒ“ì„), ë²„í¼ê°€ ë©ˆì¶”ì§€ ì•Šë„ë¡ ê°•ì œë¡œ ìŠ¤í‚µí•©ë‹ˆë‹¤.")]
+    [SerializeField] private float gapTimeoutSec = 0.35f;
 
-    /// <summary>
-    /// ´©ÀûµÈ ÅØ½ºÆ®(¶óº§) È÷½ºÅä¸®.
-    /// </summary>
-    private readonly List<StoredLabel> storedLabels = new();
+    [Tooltip("authorë³„ ì¬ì •ë ¬ ë²„í¼ì— ìŒ“ì¼ ìˆ˜ ìˆëŠ” ìµœëŒ€ ì´ë²¤íŠ¸ ìˆ˜. ë„ˆë¬´ ì»¤ì§€ë©´ ë©”ëª¨ë¦¬/ì§€ì—° ì¦ê°€. ë³´í†µ 128~512 ì‚¬ì´.")]
+    [SerializeField] private int maxBufferedEventsPerAuthor = 256;
 
-    /// <summary>
-    /// È÷½ºÅä¸® ÀúÀå¿ë ½ºÆ®·ÎÅ© µ¥ÀÌÅÍ.
-    /// - author + strokeId Á¶ÇÕÀ¸·Î ½ºÆ®·ÎÅ©¸¦ À¯ÀÏÇÏ°Ô ½Äº°ÇÕ´Ï´Ù.
-    /// </summary>
-    private struct StoredStroke
+    // ---------------------------------------------------------------------
+    // seq ì¬ì •ë ¬ ë²„í¼ êµ¬ì¡°
+    // ---------------------------------------------------------------------
+
+    private enum LiveEventType : byte
     {
-        public PlayerRef author;
-        public int strokeId;
-        public Color32 color;
-        public float widthPx;
-        public List<Vector2> points;
+        BeginStroke = 1,
+        AddPoints = 2,
+        EndStroke = 3,
+        AddLabel = 4,
+        ClearAll = 5,
     }
 
     /// <summary>
-    /// È÷½ºÅä¸® ÀúÀå¿ë ¶óº§ µ¥ÀÌÅÍ.
+    /// ë„¤íŠ¸ì›Œí¬ë¡œ ë“¤ì–´ì˜¤ëŠ” ë¼ì´ë¸Œ ì´ë²¤íŠ¸ë¥¼ "ì¬ì •ë ¬/ë³´ê´€"í•˜ê¸° ìœ„í•œ êµ¬ì¡°ì²´.
+    ///
+    /// ì™œ struct?
+    /// - ìì˜í•œ ì´ë²¤íŠ¸ê°€ ë§ì´ ì˜¤ë¯€ë¡œ í™ í• ë‹¹ì„ ì¤„ì´ê¸° ìœ„í•´ ê°’ íƒ€ì… ì‚¬ìš©.
+    /// - ë‹¨, byte[]/stringì€ ì°¸ì¡° íƒ€ì…ì´ë¼ ë‚´ë¶€ì ìœ¼ë¡œëŠ” ì°¸ì¡°ë¥¼ ë“¤ê³  ìˆìŒ.
     /// </summary>
+    private struct LiveEvent
+    {
+        public LiveEventType type;
+        public uint seq;
+        public int strokeId;
+
+        // style (BeginStroke)
+        public Color32 color;
+        public float widthPx;
+
+        // points (AddPoints)
+        public byte[] packedPoints;
+
+        // label (AddLabel)
+        public int labelId;
+        public Vector2 posNorm;
+        public string text;
+
+        // íƒ€ì„ì•„ì›ƒ/ë””ë²„ê¹… ìš©ë„
+        public float receivedAt;
+    }
+
+    /// <summary>
+    /// authorë³„ë¡œ ì¬ì •ë ¬ ë²„í¼ë¥¼ ìœ ì§€í•˜ê¸° ìœ„í•œ ìƒíƒœ.
+    /// </summary>
+    private class AuthorReorderState
+    {
+        // ë‹¤ìŒìœ¼ë¡œ ì²˜ë¦¬í•´ì•¼ í•  seq.
+        // "ì—°ì† ì²˜ë¦¬"ê°€ ê°€ëŠ¥í•  ë•Œë§Œ ì „ì§„í•œë‹¤.
+        public uint expectedSeq;
+
+        // seq -> ì´ë²¤íŠ¸
+        // SortedDictionaryë¥¼ ì“°ë©´ ê°€ì¥ ì‘ì€ seqë¶€í„° ìˆœíšŒ/ê²€ìƒ‰ì´ ì‰¬ì›€.
+        public readonly SortedDictionary<uint, LiveEvent> buffer = new();
+
+        // expectedSeqê°€ ë§‰í˜€ì„œ(ê°­) ì²˜ë¦¬ ëª» í•˜ê³  ìˆëŠ” ì‹œì‘ ì‹œê°
+        public float gapBeganAt = -1f;
+    }
+
+    // authorId -> reorder state
+    private readonly Dictionary<int, AuthorReorderState> reorderByAuthor = new(64);
+
+    // ìŠ¤ëƒ…ìƒ· ì ìš© ì¤‘ì—ëŠ” seq/reorderë¥¼ ëˆë‹¤.
+    private bool isApplyingSnapshot;
+
+    // ---------------------------------------------------------------------
+    // íˆìŠ¤í† ë¦¬ ì €ì¥ (Late Join Snapshotìš©)
+    // ---------------------------------------------------------------------
+
+    private struct StrokeStyle
+    {
+        public Color32 color;
+        public float widthPx;
+    }
+
+    private struct StoredStroke
+    {
+        public int authorId;
+        public int strokeId;
+        public StrokeStyle style;
+        public List<Vector2> points; // norm points
+    }
+
     private struct StoredLabel
     {
         public int labelId;
@@ -99,69 +127,50 @@ public class AnnotationHub : NetworkBehaviour
         public string text;
     }
 
-    // ============================
-    // ¼ö½Å(¿ø°İ Àç»ı) »óÅÂ
-    // ============================
+    private readonly List<StoredStroke> storedStrokes = new(256);
+    private readonly List<StoredLabel> storedLabels = new(64);
+
+    // (authorId, strokeId) -> storedStrokes index
+    private readonly Dictionary<OverlayStrokeKey, int> strokeIndex = new(256);
+
+    // points ì–¸íŒ© ì¬ì‚¬ìš© ë²„í¼
+    private readonly List<Vector2> unpackBuffer = new(256);
+
+    // ---------------------------------------------------------------------
+    // PendingStroke : Begin ì´ì „ Points/End ë³´ê´€ìš©
+    // ---------------------------------------------------------------------
 
     /// <summary>
-    /// ³×Æ®¿öÅ©¿¡¼­ µé¾î¿À´Â ½ºÆ®·ÎÅ©¸¦ À¯ÀÏÇÏ°Ô ±¸ºĞÇÏ±â À§ÇÑ Å°.
-    /// - (author, strokeId)
+    /// ìŠ¤íŠ¸ë¡œí¬ê°€ ì •ìƒ íë¦„(Begin -> Points -> End)ìœ¼ë¡œ ì˜¤ì§€ ì•Šì„ ë•Œ,
+    /// "ë‚˜ì¤‘ì— Beginì´ ë„ì°©í•˜ë©´ ìµœëŒ€í•œ ë³µêµ¬í•´ì„œ ê·¸ë¦¬ê¸°" ìœ„í•œ ìƒíƒœ.
+    ///
+    /// í˜„ì—…ì—ì„œ í”í•œ íŒ¨í„´:
+    /// - Beginì´ ëŠ¦ê²Œ ì˜¤ê±°ë‚˜ ìœ ì‹¤ë˜ì–´ë„, Pointsë¥¼ ì¼ë‹¨ ë³´ê´€í•œë‹¤.
+    /// - Endê°€ ë¨¼ì € ì™€ë„ ë³´ê´€í•´ë‘ê³ , Beginì´ ì˜¤ë©´ Endê¹Œì§€ ë§ˆë¬´ë¦¬í•œë‹¤.
     /// </summary>
-    private readonly struct NetStrokeKey : System.IEquatable<NetStrokeKey>
+    private class PendingStroke
     {
-        public readonly PlayerRef author;
-        public readonly int strokeId;
-
-        public NetStrokeKey(PlayerRef author, int strokeId)
-        {
-            this.author = author;
-            this.strokeId = strokeId;
-        }
-
-        public bool Equals(NetStrokeKey other)
-            => author.Equals(other.author) && strokeId == other.strokeId;
-
-        public override bool Equals(object obj)
-            => obj is NetStrokeKey other && Equals(other);
-
-        public override int GetHashCode()
-            => System.HashCode.Combine(author.GetHashCode(), strokeId);
+        public bool hasBegin;
+        public StrokeStyle style;
+        public readonly List<Vector2> pendingPoints = new(256);
+        public bool pendingEnd;
     }
 
-    /// <summary>
-    /// ¿ø°İ ½ºÆ®·ÎÅ©ÀÇ ½ÃÀÛ/½ºÅ¸ÀÏ Á¤º¸¸¦ º¸°ü.
-    /// - BeginStroke´Â "Ã¹ Æ÷ÀÎÆ®°¡ µµÂøÇßÀ» ¶§" ½ÇÁ¦·Î È£Ãâ(Áö¿¬ ½ÃÀÛ)
-    ///   -> ³×Æ®¿öÅ© ¼ø¼­/Å¸ÀÌ¹Ö ÀÌ½´·Î AddPoints°¡ ¸ÕÀú ¿À´Â °æ¿ì¸¦ ¹æ¾îÇÏ±â À§ÇÔ.
-    /// </summary>
-    private struct RemoteStrokeState
-    {
-        public Color32 color;
-        public float widthPx;
-        public bool begun;
-    }
+    // (authorId, strokeId) -> pending state
+    private readonly Dictionary<OverlayStrokeKey, PendingStroke> pendingByStroke = new(256);
 
-    /// <summary>
-    /// ¿ø°İ ½ºÆ®·ÎÅ© »óÅÂ ¸Ê.
-    /// </summary>
-    private readonly Dictionary<NetStrokeKey, RemoteStrokeState> remoteStates = new();
-
-    /// <summary>
-    /// packedPoints¸¦ UnpackÇÏ¿© Àç»ç¿ëÇÏ´Â ¹öÆÛ(ÇÒ´ç ÃÖ¼ÒÈ­).
-    /// </summary>
-    private readonly List<Vector2> unpackBuffer = new();
+    // ---------------------------------------------------------------------
+    // Fusion lifecycle
+    // ---------------------------------------------------------------------
 
     public override void Spawned()
     {
         Instance = this;
 
         ResolveAnnotator();
+        Debug.Log($"[Hub] Spawned. IsMaster={Runner.IsSharedModeMasterClient}");
 
-        Debug.Log(
-            $"[AnnotationHub] Spawned. NetworkReady={IsNetworkReady}, annotator={(annotator != null)}, " +
-            $"IsReady={(annotator != null && annotator.IsReady)}, HasStateAuthority={Object.HasStateAuthority}"
-        );
-
-        // ¸¶½ºÅÍ´Â ÀÚ±â ½º³À¼¦ ¿äÃ» ±İÁö (ÀÚ±â È÷½ºÅä¸® Áö¿öÁú ¼ö ÀÖÀ½)
+        // Shared Mode Late Join: ë§ˆìŠ¤í„°ê°€ ì•„ë‹Œ í´ë¼ëŠ” ìŠ¤ëƒ…ìƒ· ìš”ì²­
         if (Runner.GameMode == GameMode.Shared)
         {
             if (!Runner.IsSharedModeMasterClient)
@@ -169,7 +178,6 @@ public class AnnotationHub : NetworkBehaviour
         }
         else
         {
-            // Shared ¾Æ´Ñ °æ¿ì Á¤Ã¥ÀÌ ÇÊ¿äÇÏ¸é ¿©±â¼­ °áÁ¤
             RequestSnapshot();
         }
     }
@@ -180,22 +188,16 @@ public class AnnotationHub : NetworkBehaviour
         base.Despawned(runner, hasState);
     }
 
-    /// <summary>
-    /// Annotator¸¦ Ã£´Â ·ÎÁ÷.
-    /// - AnnotatorAnchor.Instance°¡ ÀÖÀ¸¸é °Å±â¼­ °¡Á®¿À´Â °ÍÀ» ÃÖ¿ì¼±(±ÇÀå).
-    /// - ¾øÀ¸¸é Scene ÀüÃ¼¿¡¼­ IOverlayAnnotator ±¸ÇöÃ¼¸¦ Å½»ö(¹é¾÷).
-    /// </summary>
     private void ResolveAnnotator()
     {
-        if (AnnotatorAnchor.Instance != null)
-            annotator = AnnotatorAnchor.Instance.Annotator;
+        annotator = AnnotatorAnchor.Instance != null ? AnnotatorAnchor.Instance.Annotator : null;
 
+        // ë°±ì—…(ê°€ê¸‰ì  ì•µì»¤ ê¶Œì¥)
         if (annotator == null)
         {
-            var candidates = FindObjectsOfType<MonoBehaviour>(true);
-            foreach (var c in candidates)
+            foreach (var mb in FindObjectsOfType<MonoBehaviour>(true))
             {
-                if (c is IOverlayAnnotator a)
+                if (mb is IOverlayAnnotator a)
                 {
                     annotator = a;
                     break;
@@ -204,489 +206,616 @@ public class AnnotationHub : NetworkBehaviour
         }
     }
 
-    /// <summary>
-    /// Annotator°¡ ½ÇÁ¦·Î ÀÔ·Â/·»´õ °¡´ÉÇÑ »óÅÂÀÎÁö È®ÀÎ.
-    /// </summary>
-    private bool IsAnnotatorReady()
-        => annotator != null && annotator.IsReady;
+    private bool IsAnnotatorReady() => annotator != null && annotator.IsReady;
 
-    // =============================
-    // Bridge¿¡¼­ È£ÃâÇÏ´Â API (Àü¼Û + ·ÎÄÃ È÷½ºÅä¸® ¹İ¿µ)
-    // =============================
+    private int AuthorIdFrom(PlayerRef author)
+        => author.GetHashCode();
 
-    /// <summary>
-    /// ½ºÆ®·ÎÅ© ½ÃÀÛ Àü¼Û.
-    ///
-    /// ÁÖÀÇ:
-    /// - RPC´Â InvokeLocal=false¶ó¼­ "º¸³½ »ç¶÷"Àº Begin RPC¸¦ ´Ù½Ã ¹ŞÁö ¾Ê½À´Ï´Ù.
-    /// - µû¶ó¼­ ¿©±â¼­ ·ÎÄÃ È÷½ºÅä¸®¸¦ ¸ÕÀú ´©ÀûÇØ¾ß ¸ğµç Å¬¶óÀÌ¾ğÆ®ÀÇ È÷½ºÅä¸®°¡ µ¿ÀÏÇØÁı´Ï´Ù.
-    /// </summary>
-    public void SendBeginStroke(int strokeId, Color32 color, float widthPx)
+    // ---------------------------------------------------------------------
+    // ì†¡ì‹  API (NetBridgeì—ì„œ í˜¸ì¶œ) - ê¸°ì¡´ê³¼ ë™ì¼
+    // ---------------------------------------------------------------------
+
+    public void SendBeginStroke(uint seq, int strokeId, Color32 color, float widthPx)
     {
         if (!IsNetworkReady) return;
 
-        // ³×Æ®¿öÅ© Àü¼Û·®À» ÁÙÀÌ±â À§ÇØ width¸¦ 0.1px ´ÜÀ§·Î ¾çÀÚÈ­(ushort)
-        ushort widthQ = (ushort)Mathf.Clamp(Mathf.RoundToInt(widthPx * 10f), 1, 4000);
+        RPC_BeginStroke(seq, strokeId, color, widthPx);
 
-        // 1) ·ÎÄÃ È÷½ºÅä¸® ¹İ¿µ(º¸³½ »ç¶÷ Àü¿ë)
-        LocalRecordBegin(Runner.LocalPlayer, strokeId, color, widthQ);
-
-        // 2) ³×Æ®¿öÅ© Àü¼Û(´Ù¸¥ »ç¶÷µé¿¡°Ô¸¸ µµÂø)
-        RPC_BeginStroke(strokeId, color, widthQ);
+        // ì†¡ì‹ ì ë¡œì»¬ ì¦‰ì‹œ ë°˜ì˜(InvokeLocal=false ëŒ€ë¹„)
+        //LocalRecordBegin(Runner.LocalPlayer, strokeId, color, widthPx);
+        //LocalRenderBegin(Runner.LocalPlayer, strokeId, color, widthPx);
     }
 
-    /// <summary>
-    /// Æ÷ÀÎÆ® Ã»Å© Àü¼Û.
-    /// - packedPoints´Â (x ushort + y ushort) ¹İº¹À¸·Î ±¸¼ºµÈ ¹ÙÀÌÆ® ¹è¿­(StrokeNetEncoder Âü°í)
-    /// </summary>
-    public void SendAddPointsChunk(int strokeId, byte[] packedPoints)
+    public void SendAddPoints(uint seq, int strokeId, byte[] packedPoints)
     {
         if (!IsNetworkReady) return;
 
-        // 1) ·ÎÄÃ È÷½ºÅä¸® ¹İ¿µ(º¸³½ »ç¶÷ Àü¿ë)
-        LocalRecordPoints(Runner.LocalPlayer, strokeId, packedPoints);
+        RPC_AddPoints(seq, strokeId, packedPoints);
 
-        // 2) ³×Æ®¿öÅ© Àü¼Û
-        RPC_AddPoints(strokeId, packedPoints);
+        StrokeNetEncoderOptimized.UnpackPoints(packedPoints, unpackBuffer);
+        //LocalRecordPoints(Runner.LocalPlayer, strokeId, unpackBuffer);
+        //LocalRenderPoints(Runner.LocalPlayer, strokeId, unpackBuffer);
     }
 
-    /// <summary>
-    /// ½ºÆ®·ÎÅ© Á¾·á Àü¼Û.
-    /// </summary>
-    public void SendEndStroke(int strokeId)
+    public void SendEndStroke(uint seq, int strokeId)
     {
         if (!IsNetworkReady) return;
 
-        // Á¾·á ÀÚÃ¼´Â È÷½ºÅä¸® »ó º°µµ µ¥ÀÌÅÍ°¡ ÇÊ¿äÇÏÁö ¾ÊÁö¸¸,
-        // ¼ö½ÅÃø ·»´õ¿¡¼­´Â EndStroke°¡ ÇÊ¿äÇÕ´Ï´Ù.
-        RPC_EndStroke(strokeId);
+        RPC_EndStroke(seq, strokeId);
+
+        //LocalRecordEnd(Runner.LocalPlayer, strokeId);
+        //LocalRenderEnd(Runner.LocalPlayer, strokeId);
     }
 
-    /// <summary>
-    /// ¶óº§ Àü¼Û.
-    /// </summary>
-    public void SendAddLabel(int labelId, Vector2 posNorm, string text)
+    public void SendAddLabel(uint seq, int labelId, Vector2 posNorm, string text)
     {
         if (!IsNetworkReady) return;
 
-        ushort x = StrokeNetEncoder.Float01ToU16(posNorm.x);
-        ushort y = StrokeNetEncoder.Float01ToU16(posNorm.y);
+        RPC_AddLabel(seq, labelId, posNorm, text);
 
-        // 1) ·ÎÄÃ È÷½ºÅä¸® ¹İ¿µ(º¸³½ »ç¶÷ Àü¿ë)
-        LocalRecordLabel(labelId, x, y, text);
-
-        // 2) ³×Æ®¿öÅ© Àü¼Û
-        RPC_AddLabel(labelId, x, y, text);
+        //LocalRecordLabel(labelId, posNorm, text);
+        //LocalRenderLabel(labelId, posNorm, text);
     }
 
-    /// <summary>
-    /// ÀüÃ¼ Clear Àü¼Û.
-    ///
-    /// ¿ä±¸»çÇ×:
-    /// - ¼¼¼ÇÀÌ À¯ÁöµÇ´Â µ¿¾È µå·ÎÀ×Àº À¯Áö
-    /// - ¸í½ÃÀûÀ¸·Î Clear¸¦ ´©¸£¸é ¸ğµÎ¿¡°Ô Clear + È÷½ºÅä¸®µµ ÃÊ±âÈ­
-    ///
-    /// RPC´Â InvokeLocal=falseÀÌ¹Ç·Î,
-    /// º¸³½ »ç¶÷Àº ¿©±â¼­ ·ÎÄÃ Clear¸¦ ¸ÕÀú ¼öÇàÇØ¾ß ÇÕ´Ï´Ù.
-    /// </summary>
-    public void SendClear()
+    public void SendClearAll(uint seq)
     {
         if (!IsNetworkReady) return;
 
-        // 1) ·ÎÄÃ È÷½ºÅä¸® + ·ÎÄÃ ·»´õ ÃÊ±âÈ­(º¸³½ »ç¶÷ Àü¿ë)
-        LocalApplyClear();
+        RPC_ClearAll(seq);
 
-        // 2) ³×Æ®¿öÅ© Àü¼Û
-        RPC_Clear();
+        // ClearëŠ” ê°•í•œ ìƒíƒœ ë³€ê²½ì´ë¯€ë¡œ ì†¡ì‹ ìë„ ì¦‰ì‹œ ë°˜ì˜
+        //LocalClearAll();
     }
 
-    // =============================
-    // Late Join: Snapshot
-    // =============================
+    // ---------------------------------------------------------------------
+    // ë¼ì´ë¸Œ RPC ìˆ˜ì‹  -> "ì¦‰ì‹œ ì²˜ë¦¬" ëŒ€ì‹  "ì¬ì •ë ¬ ë²„í¼ì— enqueue" í›„ flush
+    // ---------------------------------------------------------------------
 
-    /// <summary>
-    /// ½º³À¼¦ ¿äÃ».
-    /// - "ÇöÀç Å¬¶óÀÌ¾ğÆ®"°¡ StateAuthority(¸¶½ºÅÍ)¿¡°Ô ¿äÃ»ÇÕ´Ï´Ù.
-    /// </summary>
-    public void RequestSnapshot()
-    {
-        if (!IsNetworkReady) return;
-        Debug.Log($"[Snapshot][Send] local={Runner.LocalPlayer} -> request snapshot");
-        RPC_RequestSnapshot(Runner.LocalPlayer);
-    }
-
-    /// <summary>
-    /// ½º³À¼¦ ¿äÃ» RPC (¸ğµç Å¬¶óÀÌ¾ğÆ® -> StateAuthority).
-    /// - StateAuthority¸¸ Ã³¸®ÇÕ´Ï´Ù.
-    /// - ÇÙ½É: È÷½ºÅä¸®´Â ¸ğµç Å¬¶óÀÌ¾ğÆ®°¡ µ¿ÀÏÇÏ°Ô ´©ÀûµÇ¹Ç·Î,
-    ///         ¸¶½ºÅÍ°¡ ¹Ù²î¾îµµ ¸¶½ºÅÍ´Â ½º³À¼¦À» ¸¸µé ¼ö ÀÖ½À´Ï´Ù.
-    /// "¿äÃ»"Àº ¸ğµç Å¬¶ó°¡ ¹Ş°Ô ÇÏ°í, "Ã³¸®"´Â SharedModeMasterClient¸¸ ÇÏµµ·Ï °¡µå
-    /// </summary>
     [Rpc(RpcSources.All, RpcTargets.All)]
-    private void RPC_RequestSnapshot(PlayerRef requester, RpcInfo info = default)
+    private void RPC_BeginStroke(uint seq, int strokeId, Color32 color, float widthPx, RpcInfo info = default)
     {
-        Debug.Log(
-        $"[Snapshot][Request] hub={Object.Id} " +
-        $"src={info.Source} requester={requester} " +
-        $"isMaster={Runner.IsSharedModeMasterClient} hasSA={Object.HasStateAuthority} " +
-        $"mode={Runner.GameMode}");
-
-        // Shared Mode¿¡¼­´Â ¸¶½ºÅÍ¸¸ Ã³¸®
-        if (Runner.GameMode == GameMode.Shared && !Runner.IsSharedModeMasterClient)
-            return;
-
-        // ½º³À¼¦ ÀÀ´ä RPCµéÀº RpcSources.StateAuthority ÀÌ¹Ç·Î,
-        // ½ÇÁ¦ Àü¼Û ÁÖÃ¼´Â StateAuthority¿©¾ß ¾ÈÀüÇÕ´Ï´Ù.
-        // if (!Object.HasStateAuthority)
-            // return;
-
-        Debug.Log($"[Snapshot][Reply] to={requester} strokes={storedStrokes.Count} labels={storedLabels.Count}");
-        // 1) requester È­¸éÀ» ¸ÕÀú clear
-        RPC_SnapshotClear(requester);
-
-        // 2) ¶óº§ Àü¼Û
-        for (int i = 0; i < storedLabels.Count; i++)
+        EnqueueLiveEvent(info.Source, new LiveEvent
         {
-            var lbl = storedLabels[i];
-            ushort x = StrokeNetEncoder.Float01ToU16(lbl.pos.x);
-            ushort y = StrokeNetEncoder.Float01ToU16(lbl.pos.y);
-            RPC_SnapshotAddLabel(requester, lbl.labelId, x, y, lbl.text);
-        }
-
-        // 3) ½ºÆ®·ÎÅ© Àü¼Û
-        for (int i = 0; i < storedStrokes.Count; i++)
-        {
-            var s = storedStrokes[i];
-            ushort widthQ = (ushort)Mathf.Clamp(Mathf.RoundToInt(s.widthPx * 10f), 1, 4000);
-
-            RPC_SnapshotBeginStroke(requester, s.author, s.strokeId, s.color, widthQ);
-
-            const int MAX_POINTS_PER_RPC = 64;
-            StrokeNetEncoder.ForEachChunk(s.points, MAX_POINTS_PER_RPC, (start, count) =>
-            {
-                var temp = new Vector2[count];
-                for (int k = 0; k < count; k++) temp[k] = s.points[start + k];
-
-                var packed = StrokeNetEncoder.PackPoints(temp);
-                RPC_SnapshotAddPoints(requester, s.author, s.strokeId, packed);
-            });
-
-            RPC_SnapshotEndStroke(requester, s.author, s.strokeId);
-        }
-    }
-
-    /// <summary>
-    /// ½º³À¼¦: ´ë»ó Å¬¶óÀÌ¾ğÆ®ÀÇ È­¸é/È÷½ºÅä¸®¸¦ '½º³À¼¦ ±âÁØ'À¸·Î µ¤¾î¾²±â À§ÇØ Clear ¼öÇà.
-    /// - RpcTargets.All·Î ºê·ÎµåÄ³½ºÆ®ÇÏÁö¸¸ target(PlayerRef)À¸·Î ¼ö½Å Å¬¶ó¸¸ Àû¿ëÇÕ´Ï´Ù.
-    /// </summary>
-    [Rpc(RpcSources.All, RpcTargets.All)]
-    private void RPC_SnapshotClear(PlayerRef target, RpcInfo info = default)
-    {
-        if (Runner.LocalPlayer != target) return;
-        if (!IsAnnotatorReady()) return;
-
-        // ½º³À¼¦À» Àû¿ëÇÒ ¶§´Â "±âÁ¸ »óÅÂ"¸¦ Áö¿ì°í,
-        // ÀÌ¾î¼­ µé¾î¿À´Â SnapshotBegin/AddPoints/AddLabel·Î µ¿ÀÏ È÷½ºÅä¸®¸¦ Àç±¸¼ºÇÕ´Ï´Ù.
-        // (ÀÌ·¸°Ô ÇØ¾ß ÀÌ Å¬¶óÀÌ¾ğÆ®°¡ ³ªÁß¿¡ ¸¶½ºÅÍ°¡ µÇ¾îµµ ½º³À¼¦ ÀçÀü¼ÛÀÌ °¡´É)
-        storedStrokes.Clear();
-        storedLabels.Clear();
-
-        remoteStates.Clear();
-        annotator.Clear();
-    }
-
-    /// <summary>
-    /// ½º³À¼¦: ¶óº§ Ãß°¡(´ë»ó Å¬¶óÀÌ¾ğÆ®¸¸).
-    /// </summary>
-    [Rpc(RpcSources.All, RpcTargets.All)]
-    private void RPC_SnapshotAddLabel(PlayerRef target, int labelId, ushort x, ushort y, string text, RpcInfo info = default)
-    {
-        if (Runner.LocalPlayer != target) return;
-        if (!IsAnnotatorReady()) return;
-
-        // ½º³À¼¦À¸·Î ¹ŞÀº ¶óº§µµ È÷½ºÅä¸®¿¡ ´©Àû
-        LocalRecordLabel(labelId, x, y, text);
-
-        var pos = new Vector2(StrokeNetEncoder.U16ToFloat01(x), StrokeNetEncoder.U16ToFloat01(y));
-        annotator.AddText(pos, text);
-    }
-
-    /// <summary>
-    /// ½º³À¼¦: ½ºÆ®·ÎÅ© ½ÃÀÛ Á¤º¸ ÀúÀå(´ë»ó Å¬¶óÀÌ¾ğÆ®¸¸).
-    /// - ½ÇÁ¦ BeginStroke È£ÃâÀº Ã¹ Æ÷ÀÎÆ® µµÂø ½ÃÁ¡¿¡ ¼öÇà(Áö¿¬ ½ÃÀÛ)
-    /// </summary>
-    [Rpc(RpcSources.All, RpcTargets.All)]
-    private void RPC_SnapshotBeginStroke(PlayerRef target, PlayerRef author, int strokeId, Color32 color, ushort widthQ, RpcInfo info = default)
-    {
-        if (Runner.LocalPlayer != target) return;
-        if (!IsAnnotatorReady()) return;
-
-        // ½º³À¼¦À¸·Î ¹ŞÀº ½ºÆ®·ÎÅ© ½ÃÀÛ Á¤º¸µµ È÷½ºÅä¸®¿¡ ´©Àû
-        // (points´Â AddPoints¿¡¼­ ´©ÀûµÊ)
-        LocalRecordBegin(author, strokeId, color, widthQ);
-
-        var key = new NetStrokeKey(author, strokeId);
-        remoteStates[key] = new RemoteStrokeState
-        {
-            color = color,
-            widthPx = widthQ / 10f,
-            begun = false
-        };
-    }
-
-    /// <summary>
-    /// ½º³À¼¦: Æ÷ÀÎÆ® Ãß°¡(´ë»ó Å¬¶óÀÌ¾ğÆ®¸¸).
-    /// </summary>
-    [Rpc(RpcSources.All, RpcTargets.All)]
-    private void RPC_SnapshotAddPoints(PlayerRef target, PlayerRef author, int strokeId, byte[] packedPoints, RpcInfo info = default)
-    {
-        if (Runner.LocalPlayer != target) return;
-
-        // ½º³À¼¦À¸·Î ¹ŞÀº Æ÷ÀÎÆ®µµ È÷½ºÅä¸®¿¡ ´©Àû
-        LocalRecordPoints(author, strokeId, packedPoints);
-
-        ReplayPackedPoints(new NetStrokeKey(author, strokeId), packedPoints);
-    }
-
-    /// <summary>
-    /// ½º³À¼¦: ½ºÆ®·ÎÅ© Á¾·á(´ë»ó Å¬¶óÀÌ¾ğÆ®¸¸).
-    /// </summary>
-    [Rpc(RpcSources.All, RpcTargets.All)]
-    private void RPC_SnapshotEndStroke(PlayerRef target, PlayerRef author, int strokeId, RpcInfo info = default)
-    {
-        if (Runner.LocalPlayer != target) return;
-        if (!IsAnnotatorReady()) return;
-
-        var key = new NetStrokeKey(author, strokeId);
-
-        if (remoteStates.TryGetValue(key, out var st) && st.begun)
-        {
-            var overlayKey = ToOverlayKey(key);
-            annotator.EndStroke(overlayKey);
-        }
-
-        remoteStates.Remove(key);
-    }
-
-    // =============================
-    // ½Ç½Ã°£ RPC (µå·ÎÀ× µ¿±âÈ­)
-    // =============================
-
-    /// <summary>
-    /// ½Ç½Ã°£: ½ºÆ®·ÎÅ© ½ÃÀÛ.
-    /// - InvokeLocal=false ÀÌ¹Ç·Î "º¸³½ »ç¶÷"Àº ÀÌ RPC¸¦ ¹ŞÁö ¾Ê½À´Ï´Ù.
-    /// - info.Source´Â "ÀÌ RPC¸¦ º¸³½ ÇÃ·¹ÀÌ¾î".
-    /// </summary>
-    [Rpc(RpcSources.All, RpcTargets.All, InvokeLocal = false)]
-    private void RPC_BeginStroke(int strokeId, Color32 color, ushort widthQ, RpcInfo info = default)
-    {
-        var author = info.Source;
-
-        // 1) È÷½ºÅä¸® ´©Àû(¼ö½ÅÀÚµéÀº ¿©±â¼­ ´©Àû)
-        LocalRecordBegin(author, strokeId, color, widthQ);
-
-        // 2) ·»´õ ÁØºñ (½ÇÁ¦ BeginStroke´Â Ã¹ Æ÷ÀÎÆ® ½ÃÁ¡¿¡ ¼öÇà)
-        if (!IsAnnotatorReady()) return;
-
-        var key = new NetStrokeKey(author, strokeId);
-        remoteStates[key] = new RemoteStrokeState
-        {
-            color = color,
-            widthPx = widthQ / 10f,
-            begun = false
-        };
-    }
-
-    /// <summary>
-    /// ½Ç½Ã°£: Æ÷ÀÎÆ® Ãß°¡.
-    /// </summary>
-    [Rpc(RpcSources.All, RpcTargets.All, InvokeLocal = false)]
-    private void RPC_AddPoints(int strokeId, byte[] packedPoints, RpcInfo info = default)
-    {
-        var author = info.Source;
-
-        // 1) È÷½ºÅä¸® ´©Àû(¼ö½ÅÀÚµéÀº ¿©±â¼­ ´©Àû)
-        LocalRecordPoints(author, strokeId, packedPoints);
-
-        // 2) ·»´õ Àç»ı
-        ReplayPackedPoints(new NetStrokeKey(author, strokeId), packedPoints);
-    }
-
-    /// <summary>
-    /// ½Ç½Ã°£: ½ºÆ®·ÎÅ© Á¾·á.
-    /// </summary>
-    [Rpc(RpcSources.All, RpcTargets.All, InvokeLocal = false)]
-    private void RPC_EndStroke(int strokeId, RpcInfo info = default)
-    {
-        var author = info.Source;
-
-        if (!IsAnnotatorReady()) return;
-
-        var key = new NetStrokeKey(author, strokeId);
-
-        if (remoteStates.TryGetValue(key, out var st) && st.begun)
-        {
-            var overlayKey = ToOverlayKey(key);
-            annotator.EndStroke(overlayKey);
-        }
-
-        remoteStates.Remove(key);
-    }
-
-    /// <summary>
-    /// ½Ç½Ã°£: ¶óº§ Ãß°¡.
-    /// </summary>
-    [Rpc(RpcSources.All, RpcTargets.All, InvokeLocal = false)]
-    private void RPC_AddLabel(int labelId, ushort x, ushort y, string text, RpcInfo info = default)
-    {
-        // 1) È÷½ºÅä¸® ´©Àû(¼ö½ÅÀÚ)
-        LocalRecordLabel(labelId, x, y, text);
-
-        // 2) ·»´õ
-        if (!IsAnnotatorReady()) return;
-        var pos = new Vector2(StrokeNetEncoder.U16ToFloat01(x), StrokeNetEncoder.U16ToFloat01(y));
-        annotator.AddText(pos, text);
-    }
-
-    /// <summary>
-    /// ½Ç½Ã°£: ÀüÃ¼ Clear.
-    /// - InvokeLocal=false ÀÌ¹Ç·Î "º¸³½ »ç¶÷"Àº ÀÌ RPC¸¦ ¹ŞÁö ¾Ê½À´Ï´Ù.
-    ///   -> º¸³½ »ç¶÷Àº SendClear()¿¡¼­ ·ÎÄÃ Clear¸¦ ¼öÇàÇØ¾ß ÇÕ´Ï´Ù.
-    /// </summary>
-    [Rpc(RpcSources.All, RpcTargets.All, InvokeLocal = false)]
-    private void RPC_Clear(RpcInfo info = default)
-    {
-        // ¼ö½ÅÀÚ´Â ¿©±â¼­ Clear ¼öÇà
-        LocalApplyClear();
-    }
-
-    // =============================
-    // ³»ºÎ À¯Æ¿: È÷½ºÅä¸® ´©Àû/ÃÊ±âÈ­
-    // =============================
-
-    /// <summary>
-    /// ·ÎÄÃ È÷½ºÅä¸®¿¡ "½ºÆ®·ÎÅ© ½ÃÀÛ"À» ´©ÀûÇÕ´Ï´Ù.
-    /// - ¸ğµç Å¬¶óÀÌ¾ğÆ®°¡ µ¿ÀÏÇÑ µ¥ÀÌÅÍ¸¦ °®µµ·Ï ÇÏ´Â ÇÙ½É ·ÎÁ÷.
-    /// </summary>
-    private void LocalRecordBegin(PlayerRef author, int strokeId, Color32 color, ushort widthQ)
-    {
-        // ÀÌ¹Ì Á¸ÀçÇÏ¸é µ¤¾î¾²±â(¹æ¾î)
-        int idx = storedStrokes.FindIndex(s => s.author.Equals(author) && s.strokeId == strokeId);
-        if (idx >= 0)
-        {
-            var s = storedStrokes[idx];
-            s.color = color;
-            s.widthPx = widthQ / 10f;
-            if (s.points == null) s.points = new List<Vector2>(256);
-            storedStrokes[idx] = s;
-            return;
-        }
-
-        storedStrokes.Add(new StoredStroke
-        {
-            author = author,
+            type = LiveEventType.BeginStroke,
+            seq = seq,
             strokeId = strokeId,
             color = color,
-            widthPx = widthQ / 10f,
-            points = new List<Vector2>(256)
+            widthPx = widthPx,
+            receivedAt = Time.unscaledTime
+        });
+    }
+
+    [Rpc(RpcSources.All, RpcTargets.All)]
+    private void RPC_AddPoints(uint seq, int strokeId, byte[] packedPoints, RpcInfo info = default)
+    {
+        if (packedPoints == null || packedPoints.Length == 0) return;
+
+        EnqueueLiveEvent(info.Source, new LiveEvent
+        {
+            type = LiveEventType.AddPoints,
+            seq = seq,
+            strokeId = strokeId,
+            packedPoints = packedPoints,
+            receivedAt = Time.unscaledTime
+        });
+    }
+
+    [Rpc(RpcSources.All, RpcTargets.All)]
+    private void RPC_EndStroke(uint seq, int strokeId, RpcInfo info = default)
+    {
+        EnqueueLiveEvent(info.Source, new LiveEvent
+        {
+            type = LiveEventType.EndStroke,
+            seq = seq,
+            strokeId = strokeId,
+            receivedAt = Time.unscaledTime
+        });
+    }
+
+    [Rpc(RpcSources.All, RpcTargets.All)]
+    private void RPC_AddLabel(uint seq, int labelId, Vector2 posNorm, string text, RpcInfo info = default)
+    {
+        EnqueueLiveEvent(info.Source, new LiveEvent
+        {
+            type = LiveEventType.AddLabel,
+            seq = seq,
+            labelId = labelId,
+            posNorm = posNorm,
+            text = text,
+            receivedAt = Time.unscaledTime
+        });
+    }
+
+    [Rpc(RpcSources.All, RpcTargets.All)]
+    private void RPC_ClearAll(uint seq, RpcInfo info = default)
+    {
+        EnqueueLiveEvent(info.Source, new LiveEvent
+        {
+            type = LiveEventType.ClearAll,
+            seq = seq,
+            receivedAt = Time.unscaledTime
         });
     }
 
     /// <summary>
-    /// ·ÎÄÃ È÷½ºÅä¸®¿¡ "Æ÷ÀÎÆ®"¸¦ ´©ÀûÇÕ´Ï´Ù.
-    /// - packedPoints¸¦ unpackÇØ¼­ points ¸®½ºÆ®¿¡ Ãß°¡ÇÕ´Ï´Ù.
+    /// ë¼ì´ë¸Œ ì´ë²¤íŠ¸ë¥¼ ì¬ì •ë ¬ ë²„í¼ì— ë„£ê³ , ì²˜ë¦¬ ê°€ëŠ¥í•œ ë§Œí¼ ìˆœì„œëŒ€ë¡œ ì²˜ë¦¬í•œë‹¤.
+    ///
+    /// ì™œ ì¦‰ì‹œ ì²˜ë¦¬í•˜ì§€ ì•Šë‚˜?
+    /// - out-of-orderë¥¼ ì •ìƒ ìˆœì„œë¡œ ë°”ê¾¸ë ¤ë©´ "ì¼ë‹¨ ëª¨ì•„ì•¼" í•œë‹¤.
+    /// - seq ì²´í¬ë¡œ ë¬´ì¡°ê±´ ë“œë¡­í•˜ë©´ ì—­ìˆœì—ì„œ ìŠ¤íŠ¸ë¡œí¬ê°€ í†µì§¸ë¡œ ì‚¬ë¼ì§ˆ ìˆ˜ ìˆìŒ.
+    ///
+    /// ìŠ¤ëƒ…ìƒ· ì ìš© ì¤‘ì´ë©´:
+    /// - ë¼ì´ë¸Œ ì´ë²¤íŠ¸ë¥¼ ì²˜ë¦¬í•˜ë©´ ì¶©ëŒ ê°€ëŠ¥
+    /// - ì´ ì˜ˆì œì—ì„œëŠ” ìŠ¤ëƒ…ìƒ· ì¤‘ ë¼ì´ë¸Œ ì²˜ë¦¬ë¥¼ ë§‰ëŠ” ìª½(ì•ˆì • ìš°ì„ )
     /// </summary>
-    private void LocalRecordPoints(PlayerRef author, int strokeId, byte[] packedPoints)
+    private void EnqueueLiveEvent(PlayerRef author, LiveEvent evt)
     {
-        int idx = storedStrokes.FindIndex(s => s.author.Equals(author) && s.strokeId == strokeId);
-        if (idx < 0)
+        if (isApplyingSnapshot) return; // ìŠ¤ëƒ…ìƒ· ì¤‘ì—ëŠ” ë¼ì´ë¸Œë¥¼ ë§‰ì•„ ì•ˆì •ì„± ìš°ì„ 
+
+        int authorId = AuthorIdFrom(author);
+
+        if (!reorderByAuthor.TryGetValue(authorId, out var st))
         {
-            // BeginÀÌ ¸ÕÀú ¿Í¾ß Á¤»óÀÌ³ª, ³×Æ®¿öÅ© »óÈ²¿¡ ´ëºñÇØ ¹æ¾îÀûÀ¸·Î BeginÀ» »ı¼ºÇÕ´Ï´Ù.
-            LocalRecordBegin(author, strokeId, new Color32(255, 0, 0, 255), (ushort)(3f * 10f));
-            idx = storedStrokes.FindIndex(s => s.author.Equals(author) && s.strokeId == strokeId);
-            if (idx < 0) return;
+            st = new AuthorReorderState
+            {
+                expectedSeq = 0,
+                gapBeganAt = -1f
+            };
+            reorderByAuthor[authorId] = st;
         }
 
-        StrokeNetEncoder.UnpackPoints(packedPoints, unpackBuffer);
-        storedStrokes[idx].points.AddRange(unpackBuffer);
+        // buffer overflow ë°©ì§€:
+        // ë„ˆë¬´ ë§ì´ ìŒ“ì´ë©´ ì§€ì—°ì´ ì»¤ì§€ê³  ë©”ëª¨ë¦¬ë¥¼ ì¡ì•„ë¨¹ìŒ.
+        // í˜„ì—…ì—ì„œë„ "ìœˆë„ìš° ì œí•œ"ì„ ë‘”ë‹¤.
+        if (st.buffer.Count >= maxBufferedEventsPerAuthor)
+        {
+            // ê°€ì¥ ì˜¤ë˜ëœ ê²ƒ(ê°€ì¥ ì‘ì€ seq)ì„ ì œê±°í•˜ê³  ì§„í–‰ì„±ì„ í™•ë³´.
+            // ì œê±° ì •ì±…ì€ í”„ë¡œì íŠ¸ì— ë”°ë¼ ë‹¤ë¥´ì§€ë§Œ,
+            // ë“œë¡œì‰ì€ "ìµœì‹ ì´ ì¤‘ìš”"í•˜ë¯€ë¡œ ì´ëŸ° ì„ íƒì´ í•©ë¦¬ì ì¼ ë•Œê°€ ë§ë‹¤.
+            var firstKey = GetFirstKey(st.buffer);
+            st.buffer.Remove(firstKey);
+
+            // expectedSeqê°€ ì œê±°ëœ ìª½ì— ê±¸ë ¤ ìˆìœ¼ë©´, expectedSeqë¥¼ ì•ìœ¼ë¡œ ë‹¹ê¸´ë‹¤.
+            if (st.expectedSeq <= firstKey)
+                st.expectedSeq = firstKey;
+        }
+
+        // ì¤‘ë³µ seqëŠ” ê·¸ëƒ¥ ë¬´ì‹œ(ë™ì¼ seqëŠ” ë™ì¼ ì´ë²¤íŠ¸ë¼ê³  ê°€ì •)
+        if (st.buffer.ContainsKey(evt.seq))
+            return;
+
+        st.buffer.Add(evt.seq, evt);
+
+        FlushAuthorBuffer(author, authorId, st);
     }
 
     /// <summary>
-    /// ·ÎÄÃ È÷½ºÅä¸®¿¡ "¶óº§"À» ´©ÀûÇÕ´Ï´Ù.
+    /// authorë³„ ë²„í¼ì—ì„œ expectedSeqë¶€í„° ì—°ì†ëœ ì´ë²¤íŠ¸ë¥¼ ì²˜ë¦¬í•œë‹¤.
+    /// seq ê°­ì´ ì˜¤ë˜ ì§€ì†ë˜ë©´ íƒ€ì„ì•„ì›ƒìœ¼ë¡œ ìŠ¤í‚µí•œë‹¤.
     /// </summary>
-    private void LocalRecordLabel(int labelId, ushort x, ushort y, string text)
+    private void FlushAuthorBuffer(PlayerRef author, int authorId, AuthorReorderState st)
     {
-        var pos = new Vector2(StrokeNetEncoder.U16ToFloat01(x), StrokeNetEncoder.U16ToFloat01(y));
-        storedLabels.Add(new StoredLabel { labelId = labelId, pos = pos, text = text });
+        // expectedSeqê°€ 0ì´ë¼ë©´, ìµœì´ˆë¡œ ë“¤ì–´ì˜¨ ì´ë²¤íŠ¸ë¥¼ ê¸°ì¤€ìœ¼ë¡œ ì¡ëŠ”ë‹¤.
+        // ì´ìœ :
+        // - ì²« ì´ë²¤íŠ¸ê°€ seq=100ë¶€í„° ì˜¬ ìˆ˜ë„ ìˆìŒ(ì¤‘ê°„ í•©ë¥˜/ë¦¬ì…‹ ë“±)
+        // - ë¬´ì¡°ê±´ 1ë¶€í„° ê¸°ë‹¤ë¦¬ë©´ ì˜ì›íˆ ì²˜ë¦¬ ëª»í•¨
+        if (st.expectedSeq == 0 && st.buffer.Count > 0)
+        {
+            uint first = GetFirstKey(st.buffer);
+            st.expectedSeq = first;
+        }
+
+        bool progressed = false;
+
+        while (st.buffer.TryGetValue(st.expectedSeq, out var evt))
+        {
+            st.buffer.Remove(st.expectedSeq);
+
+            ApplyLiveEvent(author, authorId, evt);
+
+            st.expectedSeq++; // ë‹¤ìŒ seqë¡œ ì „ì§„
+            progressed = true;
+
+            // ê°­ ëŒ€ê¸° ì‹œì‘ ì‹œê° ë¦¬ì…‹
+            st.gapBeganAt = -1f;
+        }
+
+        if (progressed)
+            return;
+
+        // ì—¬ê¸°ê¹Œì§€ ì™”ë‹¤ëŠ” ê±´:
+        // - bufferì— ë­”ê°€ ìˆì§€ë§Œ expectedSeqê°€ ì—†ìŒ(ê°­)
+        // - ì¦‰, out-of-orderë¡œ ë” í° seqë“¤ì´ ë“¤ì–´ì˜¨ ìƒíƒœ
+
+        if (st.buffer.Count <= 0)
+        {
+            st.gapBeganAt = -1f;
+            return;
+        }
+
+        // ê°­ ëŒ€ê¸° ì‹œì‘ ê¸°ë¡
+        if (st.gapBeganAt < 0f)
+            st.gapBeganAt = Time.unscaledTime;
+
+        // íƒ€ì„ì•„ì›ƒì´ë©´ "ê°€ì¥ ì‘ì€ seqë¡œ expectedSeqë¥¼ ì í”„"í•´ì„œ ì§„í–‰ì„±ì„ í™•ë³´
+        if (Time.unscaledTime - st.gapBeganAt >= gapTimeoutSec)
+        {
+            uint jump = GetFirstKey(st.buffer);
+
+            // expectedSeqê°€ ë„ˆë¬´ ë’¤ì— ê³ ì •ë¼ì„œ ë©ˆì¶˜ ê²½ìš°ë¥¼ í’€ì–´ì¤€ë‹¤.
+            st.expectedSeq = jump;
+
+            st.gapBeganAt = -1f;
+
+            // ì í”„ í›„ ë‹¤ì‹œ flush
+            FlushAuthorBuffer(author, authorId, st);
+        }
     }
 
+    private static uint GetFirstKey(SortedDictionary<uint, LiveEvent> dict)
+    {
+        // SortedDictionaryëŠ” ì²« ìš”ì†Œê°€ ìµœì†Ÿê°’
+        foreach (var kv in dict)
+            return kv.Key;
+        return 0;
+    }
+
+    // ---------------------------------------------------------------------
+    // ì´ë²¤íŠ¸ ì ìš©: PendingStrokeë¥¼ ì‚¬ìš©í•´ Begin ì´ì „ Points/Endë„ ìµœëŒ€í•œ ë³µêµ¬
+    // ---------------------------------------------------------------------
+
     /// <summary>
-    /// ·ÎÄÃ È÷½ºÅä¸® + ·ÎÄÃ ·»´õ¸¦ ¸ğµÎ ÃÊ±âÈ­ÇÕ´Ï´Ù.
-    /// - Clear ¹öÆ° ¿ä±¸»çÇ×À» ¸¸Á·½ÃÅ°´Â ÇÙ½É ÇÔ¼ö.
+    /// ì¬ì •ë ¬ì´ ì™„ë£Œëœ "ì •ìƒ ìˆœì„œ ì´ë²¤íŠ¸"ë¥¼ ì‹¤ì œë¡œ ì ìš©í•œë‹¤.
+    ///
+    /// ì—¬ê¸°ì„œë„ Begin ì´ì „ Points/Endì— ëŒ€ë¹„í•´ PendingStrokeë¥¼ ì‚¬ìš©í•œë‹¤.
+    /// (ì¬ì •ë ¬ì„ í•´ë„, gap ìŠ¤í‚µì´ ì¼ì–´ë‚˜ê±°ë‚˜ Begin ì´ë²¤íŠ¸ ìì²´ê°€ ëŠ¦ì„ ìˆ˜ ìˆê¸° ë•Œë¬¸)
     /// </summary>
-    private void LocalApplyClear()
+    private void ApplyLiveEvent(PlayerRef author, int authorId, LiveEvent evt)
+    {
+        // ClearëŠ” ì „ì²´ ìƒíƒœë¥¼ ë°”ê¾¸ëŠ” ì´ë²¤íŠ¸ë¼ ìš°ì„ ìˆœìœ„ê°€ ë§¤ìš° ë†’ë‹¤.
+        // Clear ì´í›„ì— ë“¤ì–´ì˜¨ ì˜ˆì „ ìŠ¤íŠ¸ë¡œí¬ ì´ë²¤íŠ¸ê°€ ì ìš©ë˜ë©´ í™”ë©´ì´ ë‹¤ì‹œ ë”ëŸ¬ì›Œì§.
+        // ê·¸ë˜ì„œ ClearëŠ” ë“¤ì–´ì˜¤ë©´ "pendingê¹Œì§€" í•¨ê»˜ ë¦¬ì…‹í•œë‹¤.
+        if (evt.type == LiveEventType.ClearAll)
+        {
+            LocalClearAll();
+            pendingByStroke.Clear(); // Begin ì´ì „ Pointsê¹Œì§€ í¬í•¨í•´ ì‹¹ ì œê±°
+            return;
+        }
+
+        switch (evt.type)
+        {
+            case LiveEventType.BeginStroke:
+                ApplyBegin(authorId, evt.strokeId, evt.color, evt.widthPx);
+                break;
+
+            case LiveEventType.AddPoints:
+                ApplyPoints(authorId, evt.strokeId, evt.packedPoints);
+                break;
+
+            case LiveEventType.EndStroke:
+                ApplyEnd(authorId, evt.strokeId);
+                break;
+
+            case LiveEventType.AddLabel:
+                LocalRecordLabel(evt.labelId, evt.posNorm, evt.text);
+                LocalRenderLabel(evt.labelId, evt.posNorm, evt.text);
+                break;
+        }
+    }
+
+    private PendingStroke GetOrCreatePending(OverlayStrokeKey key)
+    {
+        if (!pendingByStroke.TryGetValue(key, out var ps))
+        {
+            ps = new PendingStroke();
+            pendingByStroke[key] = ps;
+        }
+        return ps;
+    }
+
+    private void ApplyBegin(int authorId, int strokeId, Color32 color, float widthPx)
+    {
+        var key = new OverlayStrokeKey(authorId, strokeId);
+        var ps = GetOrCreatePending(key);
+
+        // Beginì´ ì´ë¯¸ ì ìš©ëœ ìŠ¤íŠ¸ë¡œí¬ì— ë‹¤ì‹œ Beginì´ ì˜¤ë©´?
+        // - seqê°€ ì •ìƒì´ë¼ë©´ ê±°ì˜ ì—†ì§€ë§Œ, gap ìŠ¤í‚µ/ë²„í¼ ì˜¤ë²„í”Œë¡œ ë“±ìœ¼ë¡œ ìƒê¸¸ ìˆ˜ ìˆìŒ.
+        // - ì •ì±…: ìƒˆ Beginì´ ì˜¤ë©´ ìŠ¤íƒ€ì¼ ê°±ì‹ ë§Œ í•˜ê³  ê³„ì† ê·¸ë¦°ë‹¤(ìµœëŒ€í•œ í‘œì‹œ ìœ ì§€).
+        ps.hasBegin = true;
+        ps.style = new StrokeStyle { color = color, widthPx = widthPx };
+
+        // íˆìŠ¤í† ë¦¬/ë Œë”ì— Begin ë°˜ì˜
+        LocalRecordBegin_ByAuthorId(authorId, strokeId, color, widthPx);
+        if (IsAnnotatorReady())
+            annotator.BeginStroke(key, color, widthPx);
+
+        // Begin ì „ì— ìŒ“ì—¬ìˆë˜ Pointsê°€ ìˆìœ¼ë©´ ì¦‰ì‹œ ë°˜ì˜
+        if (ps.pendingPoints.Count > 0)
+        {
+            LocalRecordPoints_ByAuthorId(authorId, strokeId, ps.pendingPoints);
+            if (IsAnnotatorReady())
+                annotator.AddPoints(key, ps.pendingPoints);
+
+            ps.pendingPoints.Clear();
+        }
+
+        // Begin ì „ì— Endê°€ ë¨¼ì € ì™€ ìˆì—ˆë‹¤ë©´ ë°”ë¡œ End ì²˜ë¦¬
+        if (ps.pendingEnd)
+        {
+            ps.pendingEnd = false;
+            LocalRecordEnd_ByAuthorId(authorId, strokeId);
+            if (IsAnnotatorReady())
+                annotator.EndStroke(key);
+
+            // ìŠ¤íŠ¸ë¡œí¬ëŠ” ëë‚¬ìœ¼ë‹ˆ pending ì œê±°(ë©”ëª¨ë¦¬ íšŒìˆ˜)
+            pendingByStroke.Remove(key);
+        }
+    }
+
+    private void ApplyPoints(int authorId, int strokeId, byte[] packedPoints)
+    {
+        if (packedPoints == null || packedPoints.Length == 0)
+            return;
+
+        StrokeNetEncoderOptimized.UnpackPoints(packedPoints, unpackBuffer);
+
+        var key = new OverlayStrokeKey(authorId, strokeId);
+        var ps = GetOrCreatePending(key);
+
+        if (!ps.hasBegin)
+        {
+            // Beginì´ ì•„ì§ ì—†ìœ¼ë©´, í¬ì¸íŠ¸ë¥¼ ë³´ê´€í•œë‹¤.
+            // ì´ê²ƒì´ "ì—­ìˆœì—ì„œë„ ìµœëŒ€í•œ ê·¸ë ¤ì§€ê²Œ" í•˜ëŠ” í•µì‹¬.
+            ps.pendingPoints.AddRange(unpackBuffer);
+            return;
+        }
+
+        // Beginì´ ì´ë¯¸ ì ìš©ëœ ìƒíƒœë©´ ì¦‰ì‹œ ë°˜ì˜
+        LocalRecordPoints_ByAuthorId(authorId, strokeId, unpackBuffer);
+        if (IsAnnotatorReady())
+            annotator.AddPoints(key, unpackBuffer);
+    }
+
+    private void ApplyEnd(int authorId, int strokeId)
+    {
+        var key = new OverlayStrokeKey(authorId, strokeId);
+        var ps = GetOrCreatePending(key);
+
+        if (!ps.hasBegin)
+        {
+            // Beginì´ ì•„ì§ ì—†ìœ¼ë©´ Endë¥¼ ë³´ë¥˜í•œë‹¤.
+            // ë‚˜ì¤‘ì— Beginì´ ì˜¤ë©´ Begin->(Points flush)->Endë¡œ ë§ˆë¬´ë¦¬.
+            ps.pendingEnd = true;
+            return;
+        }
+
+        LocalRecordEnd_ByAuthorId(authorId, strokeId);
+        if (IsAnnotatorReady())
+            annotator.EndStroke(key);
+
+        pendingByStroke.Remove(key);
+    }
+
+    // ---------------------------------------------------------------------
+    // Late Join Snapshot (ê¸°ì¡´ êµ¬ì¡° ìœ ì§€)
+    // ---------------------------------------------------------------------
+
+    private void RequestSnapshot()
+    {
+        if (!IsNetworkReady) return;
+        RPC_RequestSnapshot(Runner.LocalPlayer);
+    }
+
+    [Rpc(RpcSources.All, RpcTargets.All)]
+    private void RPC_RequestSnapshot(PlayerRef target, RpcInfo info = default)
+    {
+        if (!Runner.IsSharedModeMasterClient) return;
+        if (!IsAnnotatorReady()) return;
+        if (target == Runner.LocalPlayer) return;
+
+        RPC_Snapshot_Begin(target);
+
+        for (int i = 0; i < storedStrokes.Count; i++)
+        {
+            var s = storedStrokes[i];
+
+            RPC_Snapshot_BeginStroke(target, s.authorId, s.strokeId, s.style.color, s.style.widthPx);
+
+            int total = s.points.Count;
+            StrokeNetEncoderOptimized.ForEachChunkByBytes(
+                totalPoints: total,
+                maxBytesPerChunk: 900,
+                onChunk: (start, count) =>
+                {
+                    var packed = StrokeNetEncoderOptimized.PackPoints(s.points, start, count);
+                    RPC_Snapshot_AddPoints(target, s.authorId, s.strokeId, packed);
+                });
+
+            RPC_Snapshot_EndStroke(target, s.authorId, s.strokeId);
+        }
+
+        for (int i = 0; i < storedLabels.Count; i++)
+        {
+            var l = storedLabels[i];
+            RPC_Snapshot_AddLabel(target, l.labelId, l.pos, l.text);
+        }
+
+        RPC_Snapshot_End(target);
+    }
+
+    [Rpc(RpcSources.All, RpcTargets.All)]
+    private void RPC_Snapshot_Begin(PlayerRef target, RpcInfo info = default)
+    {
+        if (Runner.LocalPlayer != target) return;
+        if (!IsAnnotatorReady()) return;
+
+        // ìŠ¤ëƒ…ìƒ· ì¤‘ì—ëŠ” ë¼ì´ë¸Œ reorder/pendingsë¥¼ ì •ë¦¬í•˜ê³ , ì•ˆì •ì ìœ¼ë¡œ ìƒíƒœ ì¬êµ¬ì¶•
+        isApplyingSnapshot = true;
+
+        annotator.BeginBulk();
+
+        storedStrokes.Clear();
+        storedLabels.Clear();
+        strokeIndex.Clear();
+
+        reorderByAuthor.Clear();
+        pendingByStroke.Clear();
+
+        annotator.ClearAll();
+    }
+
+    [Rpc(RpcSources.All, RpcTargets.All)]
+    private void RPC_Snapshot_BeginStroke(PlayerRef target, int authorId, int strokeId, Color32 color, float widthPx, RpcInfo info = default)
+    {
+        if (Runner.LocalPlayer != target) return;
+        if (!IsAnnotatorReady()) return;
+
+        LocalRecordBegin_ByAuthorId(authorId, strokeId, color, widthPx);
+        annotator.BeginStroke(new OverlayStrokeKey(authorId, strokeId), color, widthPx);
+    }
+
+    [Rpc(RpcSources.All, RpcTargets.All)]
+    private void RPC_Snapshot_AddPoints(PlayerRef target, int authorId, int strokeId, byte[] packedPoints, RpcInfo info = default)
+    {
+        if (Runner.LocalPlayer != target) return;
+        if (!IsAnnotatorReady()) return;
+        if (packedPoints == null || packedPoints.Length == 0) return;
+
+        StrokeNetEncoderOptimized.UnpackPoints(packedPoints, unpackBuffer);
+
+        LocalRecordPoints_ByAuthorId(authorId, strokeId, unpackBuffer);
+        annotator.AddPoints(new OverlayStrokeKey(authorId, strokeId), unpackBuffer);
+    }
+
+    [Rpc(RpcSources.All, RpcTargets.All)]
+    private void RPC_Snapshot_EndStroke(PlayerRef target, int authorId, int strokeId, RpcInfo info = default)
+    {
+        if (Runner.LocalPlayer != target) return;
+        if (!IsAnnotatorReady()) return;
+
+        LocalRecordEnd_ByAuthorId(authorId, strokeId);
+        annotator.EndStroke(new OverlayStrokeKey(authorId, strokeId));
+    }
+
+    [Rpc(RpcSources.All, RpcTargets.All)]
+    private void RPC_Snapshot_AddLabel(PlayerRef target, int labelId, Vector2 posNorm, string text, RpcInfo info = default)
+    {
+        if (Runner.LocalPlayer != target) return;
+        if (!IsAnnotatorReady()) return;
+
+        LocalRecordLabel(labelId, posNorm, text);
+        annotator.AddLabel(labelId, posNorm, text);
+    }
+
+    [Rpc(RpcSources.All, RpcTargets.All)]
+    private void RPC_Snapshot_End(PlayerRef target, RpcInfo info = default)
+    {
+        if (Runner.LocalPlayer != target) return;
+        if (!IsAnnotatorReady()) return;
+
+        annotator.EndBulk();
+        isApplyingSnapshot = false;
+
+        Debug.Log("[Hub] Snapshot applied.");
+    }
+
+    // ---------------------------------------------------------------------
+    // ë¡œì»¬ íˆìŠ¤í† ë¦¬ ê¸°ë¡ (ìŠ¤ëƒ…ìƒ· ì†ŒìŠ¤ê°€ ë˜ë¯€ë¡œ ë§¤ìš° ì¤‘ìš”)
+    // ---------------------------------------------------------------------
+
+    private void LocalRecordBegin(PlayerRef author, int strokeId, Color32 color, float widthPx)
+        => LocalRecordBegin_ByAuthorId(AuthorIdFrom(author), strokeId, color, widthPx);
+
+    private void LocalRecordBegin_ByAuthorId(int authorId, int strokeId, Color32 color, float widthPx)
+    {
+        var key = new OverlayStrokeKey(authorId, strokeId);
+
+        if (strokeIndex.TryGetValue(key, out int idx))
+        {
+            var s = storedStrokes[idx];
+            s.points.Clear();
+            s.style = new StrokeStyle { color = color, widthPx = widthPx };
+            storedStrokes[idx] = s;
+            return;
+        }
+
+        var ns = new StoredStroke
+        {
+            authorId = authorId,
+            strokeId = strokeId,
+            style = new StrokeStyle { color = color, widthPx = widthPx },
+            points = new List<Vector2>(256)
+        };
+
+        storedStrokes.Add(ns);
+        strokeIndex[key] = storedStrokes.Count - 1;
+    }
+
+    private void LocalRecordPoints(PlayerRef author, int strokeId, List<Vector2> points)
+        => LocalRecordPoints_ByAuthorId(AuthorIdFrom(author), strokeId, points);
+
+    private void LocalRecordPoints_ByAuthorId(int authorId, int strokeId, List<Vector2> points)
+    {
+        var key = new OverlayStrokeKey(authorId, strokeId);
+        if (!strokeIndex.TryGetValue(key, out int idx)) return;
+
+        storedStrokes[idx].points.AddRange(points);
+    }
+
+    private void LocalRecordEnd(PlayerRef author, int strokeId)
+        => LocalRecordEnd_ByAuthorId(AuthorIdFrom(author), strokeId);
+
+    private void LocalRecordEnd_ByAuthorId(int authorId, int strokeId)
+    {
+        // í•„ìš”í•˜ë©´ ì¢…ë£Œ í”Œë˜ê·¸ ì €ì¥ ê°€ëŠ¥(í˜„ì¬ëŠ” ìƒëµ)
+    }
+
+    private void LocalRecordLabel(int labelId, Vector2 posNorm, string text)
+    {
+        storedLabels.Add(new StoredLabel { labelId = labelId, pos = posNorm, text = text });
+    }
+
+    private void LocalClearAll()
     {
         storedStrokes.Clear();
         storedLabels.Clear();
-        remoteStates.Clear();
+        strokeIndex.Clear();
 
-        if (!IsAnnotatorReady()) return;
-        annotator.Clear();
+        reorderByAuthor.Clear();
+        pendingByStroke.Clear();
+
+        if (IsAnnotatorReady())
+            annotator.ClearAll();
     }
 
-    // =============================
-    // ³»ºÎ À¯Æ¿: ·»´õ Àç»ı
-    // =============================
+    // ---------------------------------------------------------------------
+    // ë¡œì»¬ ë Œë” í˜¸ì¶œ (InvokeLocal=false ëŒ€ë¹„)
+    // ---------------------------------------------------------------------
 
-    /// <summary>
-    /// ³×Æ®¿öÅ© ½ºÆ®·ÎÅ© Å°(NetStrokeKey)¸¦ annotator¿ë Å°(OverlayStrokeKey)·Î º¯È¯ÇÕ´Ï´Ù.
-    ///
-    /// - AuthorId´Â PlayerRef.GetHashCode()¸¦ »ç¿ëÇÕ´Ï´Ù.
-    /// - ÀÌ °ªÀº "¼¼¼Ç µ¿¾È µ¿ÀÏ PlayerRef¿¡ ´ëÇØ ÀÏ°ü"µÇ°Ô À¯ÁöµÇ¹Ç·Î
-    ///   annotator ³»ºÎ¿¡¼­ author¸¦ ±¸ºĞÇÏ±â À§ÇÑ ¿ëµµ·Î ÃæºĞÇÕ´Ï´Ù.
-    /// </summary>
-    private static OverlayStrokeKey ToOverlayKey(NetStrokeKey key)
-    {
-        int authorId = key.author.GetHashCode();
-        return new OverlayStrokeKey(authorId, key.strokeId);
-    }
-
-    /// <summary>
-    /// packedPoints¸¦ unpackÇÏ°í, ÇØ´ç ½ºÆ®·ÎÅ©¿¡ Æ÷ÀÎÆ®¸¦ Àç»ıÇÕ´Ï´Ù.
-    ///
-    /// - BeginStroke Áö¿¬ ½ÃÀÛ Á¤Ã¥:
-    ///   ¾ÆÁ÷ begun=false¶ó¸é "Ã¹ Æ÷ÀÎÆ® µµÂø ½ÃÁ¡"¿¡ BeginStroke¸¦ È£ÃâÇÕ´Ï´Ù.
-    ///   ÀÌ·± ¹æ½ÄÀº ³×Æ®¿öÅ© ¼ø¼­ ¹®Á¦(Æ÷ÀÎÆ®°¡ ¸ÕÀú ¿À´Â °æ¿ì µî)¿¡ °­ÇÕ´Ï´Ù.
-    /// </summary>
-    private void ReplayPackedPoints(NetStrokeKey key, byte[] packedPoints)
+    private void LocalRenderBegin(PlayerRef author, int strokeId, Color32 color, float widthPx)
     {
         if (!IsAnnotatorReady()) return;
-        if (packedPoints == null || packedPoints.Length < 4) return;
+        int authorId = AuthorIdFrom(author);
+        annotator.BeginStroke(new OverlayStrokeKey(authorId, strokeId), color, widthPx);
+    }
 
-        if (!remoteStates.TryGetValue(key, out var st))
-        {
-            // BeginStroke°¡ ¸ÕÀú ¿Í¾ß Á¤»óÀÌÁö¸¸, ¿¹¿Ü »óÈ² ¹æ¾î
-            st = new RemoteStrokeState
-            {
-                color = new Color32(255, 0, 0, 255),
-                widthPx = 3f,
-                begun = false
-            };
-            remoteStates[key] = st;
-        }
+    private void LocalRenderPoints(PlayerRef author, int strokeId, List<Vector2> points)
+    {
+        if (!IsAnnotatorReady()) return;
+        int authorId = AuthorIdFrom(author);
+        annotator.AddPoints(new OverlayStrokeKey(authorId, strokeId), points);
+    }
 
-        var overlayKey = ToOverlayKey(key);
+    private void LocalRenderEnd(PlayerRef author, int strokeId)
+    {
+        if (!IsAnnotatorReady()) return;
+        int authorId = AuthorIdFrom(author);
+        annotator.EndStroke(new OverlayStrokeKey(authorId, strokeId));
+    }
 
-        // Ã¹ Æ÷ÀÎÆ® ½ÃÁ¡¿¡ BeginStroke
-        if (!st.begun)
-        {
-            annotator.BeginStroke(overlayKey, st.color, st.widthPx);
-            st.begun = true;
-            remoteStates[key] = st;
-        }
-
-        StrokeNetEncoder.UnpackPoints(packedPoints, unpackBuffer);
-        for (int i = 0; i < unpackBuffer.Count; i++)
-            annotator.AddStrokePoint(overlayKey, unpackBuffer[i]);
+    private void LocalRenderLabel(int labelId, Vector2 posNorm, string text)
+    {
+        if (!IsAnnotatorReady()) return;
+        annotator.AddLabel(labelId, posNorm, text);
     }
 }

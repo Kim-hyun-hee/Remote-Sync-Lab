@@ -1,246 +1,94 @@
-using System.Collections;
+ï»¿using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UIElements;
 
 /// <summary>
-/// UI Toolkit(UIDocument) ±â¹İ ¿À¹ö·¹ÀÌ µå·ÎÀ× ±¸ÇöÃ¼.
-///
-/// ±¸Á¶:
-/// - UIDocument.rootVisualElement ¾Æ·¡¿¡
-/// - VectorDrawingElement(Ä¿½ºÅÒ VisualElement)¸¦ ºÙ¿©¼­
-/// - painter2D·Î ¼±À» ±×¸°´Ù.
-///
-/// ÇÙ½É Æ÷ÀÎÆ®:
-/// - UI ToolkitÀº ÆĞ³Î(panel)ÀÌ ÁØºñµÇ±â Àü¿¡´Â ÁÂÇ¥ º¯È¯(ScreenToPanel)ÀÌ ºÒ°¡´ÉÇÏ´Ù.
-///   ±×·¡¼­ EnsureBuilt() ÄÚ·çÆ¾À¸·Î "ÆĞ³Î ÁØºñ ¿Ï·á"¸¦ ±â´Ù¸° ´ÙÀ½ drawingÀ» »ı¼º/ºÎÂøÇÑ´Ù.
-/// - Á¤±ÔÈ­ ÁÂÇ¥ÀÇ Y ¹æÇâÀº UI Toolkit ÁÂÇ¥°è(À§->¾Æ·¡ Áõ°¡)¿Í È¥µ¿µÇ±â ½¬¿ö¼­
-///   TryScreenToNormalized¿¡¼­ v¸¦ µÚÁı°í(1 - localY/h),
-///   ½ÇÁ¦ ·»´õ¸µ(VectorDrawingElement)¿¡¼­µµ yPx = (1 - normY) * h·Î ÀÏ°ü½ÃÅ²´Ù.
+/// UI Toolkit ê¸°ë°˜ Annotator.
+/// 
+/// - UIDocumentì˜ root ì•„ë˜ì— VectorDrawingElementOptimizedë¥¼ ë¶™ì—¬ì„œ ê·¸ë¦¼.
+/// - UXML ì—†ì´ ì½”ë“œë¡œ ìƒì„±í•˜ë¯€ë¡œ "ìŠ¤í¬ë¦½íŠ¸ë§Œ"ìœ¼ë¡œ ì‹¤í–‰ ê°€ëŠ¥.
 /// </summary>
-public class UIToolkitOverlayAnnotator : MonoBehaviour, IOverlayAnnotator
+[RequireComponent(typeof(UIDocument))]
+public class UIToolkitOverlayAnnotatorOptimized : MonoBehaviour, IOverlayAnnotator
 {
-    [Header("UI Toolkit")]
-    [SerializeField] private UIDocument uiDocument;
+    public bool IsReady => _ready;
 
-    /// <summary>
-    /// drawing(VectorDrawingElement)À» ºÙÀÏ ºÎ¸ğ VisualElementÀÇ ÀÌ¸§.
-    /// - ºñ¾îÀÖÀ¸¸é rootVisualElement¿¡ ¹Ù·Î ºÙÀÎ´Ù.
-    /// - Æ¯Á¤ ÄÁÅ×ÀÌ³Ê¿¡ ºÙÀÌ°í ½ÍÀ» ¶§¸¸ ÀÌ¸§À» ÁöÁ¤.
-    /// </summary>
-    [SerializeField] private string attachToRootName = "";
+    [Header("Brush Default")]
+    [SerializeField] private float defaultWidthPx = 4f;
 
-    /// <summary>
-    /// ½ÇÁ¦ µå·ÎÀ×À» ´ã´çÇÏ´Â Ä¿½ºÅÒ VisualElement.
-    /// </summary>
-    private VectorDrawingElement drawing;
+    private UIDocument _doc;
+    private VisualElement _root;
+    private VectorDrawingElementOptimized _drawing;
 
-    /// <summary>
-    /// drawingÀÌ ºÎÂøµÈ ºÎ¸ğ(ÄÁÅ×ÀÌ³Ê).
-    /// </summary>
-    private VisualElement attachRoot;
+    private bool _ready;
 
-    /// <summary>
-    /// ¿ÜºÎ¿¡¼­ SetActive·Î ÄÑ°í/²ô´Â »óÅÂ°ª.
-    /// - UI ToolkitÀº "GameObject È°¼º/ºñÈ°¼º"°ú º°°³·Î
-    ///   VisualElement Ç¥½Ã(DisplayStyle)¸¦ Á¦¾îÇØ¾ß ÇÑ´Ù.
-    /// </summary>
-    private bool active;
-
-    /// <summary>
-    /// UIDocument/panel ÁØºñ¸¦ ±â´Ù·È´Ù°¡ drawingÀ» »ı¼ºÇÏ±â À§ÇÑ ÄÚ·çÆ¾ ÇÚµé.
-    /// </summary>
-    private Coroutine ensureRoutine;
-
-    /// <summary>
-    /// "Áö±İ ÀÔ·Â/·»´õ°¡ °¡´ÉÇÑ »óÅÂÀÎÁö"¸¦ ¾Ë·ÁÁØ´Ù.
-    ///
-    /// Ã¼Å© Ç×¸ñ:
-    /// - active°¡ trueÀÎÁö
-    /// - UIDocument°¡ ¿¬°áµÅ ÀÖ´ÂÁö
-    /// - rootVisualElement°¡ ÀÖ´ÂÁö
-    /// - panelÀÌ ÁØºñµÆ´ÂÁö (Áß¿ä)
-    /// - drawingÀÌ »ı¼ºµÆ´ÂÁö
-    /// - attachRoot°¡ À¯È¿ÇÑÁö
-    /// </summary>
-    public bool IsReady =>
-        active &&
-        uiDocument != null &&
-        uiDocument.rootVisualElement != null &&
-        uiDocument.rootVisualElement.panel != null &&
-        drawing != null &&
-        attachRoot != null;
-
-    private void OnEnable()
+    private void Awake()
     {
-        // ÄÑÁú ¶§ UI Toolkit ÆĞ³Î ÁØºñ¸¦ º¸ÀåÇÏ±â À§ÇØ ºôµå ·çÆ¾ ½ÃÀÛ
-        if (ensureRoutine == null)
-            ensureRoutine = StartCoroutine(EnsureBuilt());
+        _doc = GetComponent<UIDocument>();
     }
 
-    private void OnDisable()
+    private void Start()
     {
-        // ÄÚ·çÆ¾ Á¤¸®
-        if (ensureRoutine != null)
-        {
-            StopCoroutine(ensureRoutine);
-            ensureRoutine = null;
-        }
+        BuildUI();
+        _ready = true;
     }
 
-    /// <summary>
-    /// ¿À¹ö·¹ÀÌ Ç¥½Ã on/off.
-    ///
-    /// ÁÖÀÇ:
-    /// - SetActive(true)¸¦ È£ÃâÇß´Ù°í Áï½Ã IsReady°¡ true°¡ µÇ´Â °Ô ¾Æ´Ï´Ù.
-    /// - UI Toolkit panel ÁØºñ Å¸ÀÌ¹ÖÀÌ µÚ¿¡ ¿Ã ¼ö ÀÖ¾î¼­ EnsureBuilt ÄÚ·çÆ¾ÀÌ ÇÊ¿äÇÏ´Ù.
-    /// </summary>
-    public void SetActive(bool active)
+    private void BuildUI()
     {
-        this.active = active;
+        _root = _doc.rootVisualElement;
+        _root.style.flexGrow = 1;
 
-        // ÄÑ´Â ¼ø°£ ºôµå°¡ ¾È µÅ ÀÖ´Ù¸é ´Ù½Ã EnsureBuilt ½Ãµµ
-        if (active && ensureRoutine == null)
-            ensureRoutine = StartCoroutine(EnsureBuilt());
-
-        // ½ÇÁ¦ Ç¥½Ã ¿©ºÎ Àû¿ë
-        if (drawing != null)
-            drawing.style.display = active ? DisplayStyle.Flex : DisplayStyle.None;
+        _drawing = new VectorDrawingElementOptimized();
+        _root.Add(_drawing);
     }
 
-    /// <summary>
-    /// UIDocumentÀÇ root/panelÀÌ ÁØºñµÉ ¶§±îÁö ±â´Ù·È´Ù°¡,
-    /// VectorDrawingElement¸¦ »ı¼ºÇØ¼­ attachRoot¿¡ ºÎÂøÇÑ´Ù.
-    ///
-    /// panelÀ» ±â´Ù¸®´Â ÀÌÀ¯:
-    /// - RuntimePanelUtils.ScreenToPanel(panel, screenPos) °°Àº º¯È¯Àº
-    ///   panelÀÌ nullÀÌ¸é µ¿ÀÛ ÀÚÃ¼°¡ ºÒ°¡´ÉÇÏ´Ù.
-    /// </summary>
-    private IEnumerator EnsureBuilt()
+    public bool TryScreenToNormalized(Vector2 screenPos, out Vector2 norm)
     {
-        // UIDocument ÇÒ´ç ´ë±â
-        while (uiDocument == null)
-            yield return null;
+        norm = default;
 
-        // rootVisualElement ÁØºñ ´ë±â
-        while (uiDocument.rootVisualElement == null)
-            yield return null;
-
-        // panel ÁØºñ ´ë±â (UI Toolkit¿¡¼­ °¡Àå Áß¿äÇÑ ÁØºñ ´Ü°è)
-        while (uiDocument.rootVisualElement.panel == null)
-            yield return null;
-
-        var root = uiDocument.rootVisualElement;
-
-        // attachRoot Å½»ö(ÀÌ¸§ÀÌ ÁöÁ¤µÈ °æ¿ì)
-        attachRoot = string.IsNullOrWhiteSpace(attachToRootName)
-            ? root
-            : root.Q<VisualElement>(attachToRootName);
-
-        // ¸ø Ã£À¸¸é root¿¡ ºÙÀÎ´Ù.
-        if (attachRoot == null)
-            attachRoot = root;
-
-        // drawing »ı¼º/ºÎÂø
-        if (drawing == null)
-        {
-            drawing = new VectorDrawingElement();
-            attachRoot.Add(drawing);
-        }
-
-        // Ç¥½Ã »óÅÂ ¹İ¿µ
-        drawing.style.display = active ? DisplayStyle.Flex : DisplayStyle.None;
-
-        ensureRoutine = null;
-    }
-
-    /// <summary>
-    /// Screen ÁÂÇ¥¸¦ Á¤±ÔÈ­ ÁÂÇ¥(0~1)·Î º¯È¯.
-    ///
-    /// Èå¸§:
-    /// 1) Screen -> Panel ÁÂÇ¥·Î º¯È¯
-    /// 2) Panel(world) -> drawing local ÁÂÇ¥·Î º¯È¯
-    /// 3) localÀ» drawing Å©±â·Î ³ª´²¼­ 0~1 Á¤±ÔÈ­
-    /// 4) UI Toolkit ÁÂÇ¥°è ¶§¹®¿¡ Y¸¦ µÚÁı¾î v=1-localY/h
-    ///
-    /// ¹İÈ¯ falseÀÎ °æ¿ì:
-    /// - IsReady°¡ ¾Æ´Ô
-    /// - drawing ¿µ¿ª ¹ÛÀ» Å¬¸¯ÇÔ
-    /// </summary>
-    public bool TryScreenToNormalized(Vector2 screenPos, out Vector2 normalized)
-    {
-        normalized = default;
-        if (!IsReady) return false;
-
-        var panel = uiDocument.rootVisualElement.panel;
-
-        // 1) Screen -> Panel
-        Vector2 panelPos = RuntimePanelUtils.ScreenToPanel(panel, screenPos);
-
-        // 2) Panel(world) -> drawing local
-        Vector2 local = drawing.WorldToLocal(panelPos);
-
-        // 3) local -> 0~1 Á¤±ÔÈ­
-        float w = Mathf.Max(1f, drawing.resolvedStyle.width);
-        float h = Mathf.Max(1f, drawing.resolvedStyle.height);
-
-        float u = local.x / w;
-
-        // 4) Y µÚÁı±â: top(0)ÀÏ ¶§ v=1, bottom(h)ÀÏ ¶§ v=0ÀÌ µÇ°Ô ¸¸µç´Ù.
-        // ÀÌ °ªÀº "¼öÇĞ ÁÂÇ¥°èÃ³·³ ¾Æ·¡°¡ 0"ÀÎ ´À³¦À¸·Î Á¤±ÔÈ­µÇ´Â ¼À.
-        float v = 1f - (local.y / h);
-
-        if (u < 0f || u > 1f || v < 0f || v > 1f)
+        if (!_ready || _drawing == null)
             return false;
 
-        normalized = new Vector2(u, v);
+        // screen -> panel ì¢Œí‘œ 
+        Vector2 panel = RuntimePanelUtils.ScreenToPanel(_doc.rootVisualElement.panel, screenPos);
+
+        Rect r = _drawing.worldBound;
+        if (!r.Contains(panel))
+            return false;
+
+        // local ì¢Œí‘œ (0..w, 0..h)
+        float localX = panel.x - r.xMin;
+        float localY = panel.y - r.yMin;
+
+        float w = r.width;
+        float h = r.height;
+        if (w <= 1f || h <= 1f) return false;
+
+        // y ë’¤ì§‘ê¸°:
+        // - UI Toolkitì˜ yëŠ” ìœ„->ì•„ë˜ë¡œ ì¦ê°€
+        // - ìš°ë¦¬ëŠ” norm.yë¥¼ "ìœ„ìª½ì´ 1"ë¡œ ë‘ë©´ ë„í˜•/ìˆ˜í•™ì ìœ¼ë¡œ ì§ê´€ì 
+        float x = Mathf.Clamp01(localX / w);
+        float y = Mathf.Clamp01(1f - (localY / h));
+
+        norm = new Vector2(x, y);
         return true;
     }
 
-    /// <summary>
-    /// ÇöÀç drawing ¿µ¿ªÀÇ ÇÈ¼¿ Å©±â.
-    /// - Æ÷ÀÎÆ® »ùÇÃ¸µ(minDistance)À» Á¤±ÔÈ­·Î ¹Ù²Ü ¶§ »ç¿ëµÊ.
-    /// </summary>
-    public Vector2 GetRenderSizePx()
-    {
-        if (drawing == null) return Vector2.one;
+    public void BeginBulk() => _drawing?.BeginBulk();
+    public void EndBulk() => _drawing?.EndBulk();
 
-        return new Vector2(
-            Mathf.Max(1f, drawing.resolvedStyle.width),
-            Mathf.Max(1f, drawing.resolvedStyle.height)
-        );
-    }
+    public void BeginStroke(OverlayStrokeKey key, Color32 color, float widthPx)
+        => _drawing.BeginStroke(key, color, widthPx <= 0 ? defaultWidthPx : widthPx);
 
-    // ===== IOverlayAnnotator: Stroke API =====
-
-    public void BeginStroke(OverlayStrokeKey key, Color color, float widthPx)
-    {
-        if (!IsReady) return;
-        drawing.BeginStroke(key, color, widthPx);
-    }
-
-    public void AddStrokePoint(OverlayStrokeKey key, Vector2 normalized)
-    {
-        if (!IsReady) return;
-        drawing.AddPoint(key, normalized);
-    }
+    public void AddPoints(OverlayStrokeKey key, IReadOnlyList<Vector2> normPoints)
+        => _drawing.AddPoints(key, normPoints);
 
     public void EndStroke(OverlayStrokeKey key)
-    {
-        if (!IsReady) return;
-        drawing.EndStroke(key);
-    }
+        => _drawing.EndStroke(key);
 
-    // ===== Text / Clear =====
+    public void AddLabel(int labelId, Vector2 normPos, string text)
+        => _drawing.AddLabel(labelId, normPos, text);
 
-    public void AddText(Vector2 normalized, string text)
-    {
-        if (!IsReady) return;
-        drawing.AddLabel(normalized, text);
-    }
-
-    public void Clear()
-    {
-        if (!IsReady) return;
-        drawing.ClearAll();
-    }
+    public void ClearAll()
+        => _drawing.ClearAll();
 }

@@ -1,61 +1,28 @@
-using UnityEngine;
+ï»¿using UnityEngine;
 
 /// <summary>
-/// "¾À¿¡¼­ ¾î¶² Annotator ±¸ÇöÃ¼¸¦ »ç¿ëÇÒÁö"¸¦ °íÁ¤ÀûÀ¸·Î Á¦°øÇÏ´Â ¾ŞÄ¿(Anchor).
-///
-/// ¿Ö ÇÊ¿äÇÏ³ª?
-/// - ³×Æ®¿öÅ© Çãºê(AnnotationHub)´Â "±×¸®±â ±¸ÇöÃ¼"¿¡ Á÷Á¢ ÀÇÁ¸ÇÏ¸é ¾È ÁÁ´Ù.
-///   (uGUI ±â¹İ(Texture2D)ÀÎÁö, UI Toolkit ±â¹İ(VectorDrawingElement)ÀÎÁö ¹Ù²ğ ¼ö ÀÖÀ½)
-/// - ÇÏÁö¸¸ ·±Å¸ÀÓ¿¡ "ÇöÀç ¾À¿¡¼­ ¾²´Â Annotator°¡ ¹«¾ùÀÎÁö"´Â ¾Ë¾Æ¾ß ÇÑ´Ù.
-///
-/// ±×·¡¼­ ¾À¿¡ AnnotatorAnchor¸¦ ÇÏ³ª µÎ°í:
-/// - inspector¿¡¼­ annotatorBehaviour¸¦ ¿¬°áÇØµÎ¸é
-/// - Hub°¡ SpawnµÉ ¶§ Anchor.Instance.Annotator¸¦ ÅëÇØ ±¸ÇöÃ¼¸¦ ¾ò´Â´Ù.
-///
-/// ÀåÁ¡:
-/// - Hub ÄÚµå°¡ ¾À ±¸Á¶ º¯°æ¿¡ ´ú ¹Î°¨ÇØÁø´Ù.
-/// - Å×½ºÆ® ½Ã, annotatorBehaviour¸¸ ±³Ã¼ÇÏ¸é µ¿ÀÏ Hub¸¦ Àç»ç¿ë °¡´É.
+/// Hubê°€ "ë Œë”ëŸ¬(IOverlayAnnotator)"ë¥¼ ì°¾ê¸° ìœ„í•œ ì•µì»¤.
+/// 
+/// ì™œ ì¸ìŠ¤í™í„°ë¡œ ì—°ê²°í•˜ë‚˜?
+/// - FindObjectOfTypeëŠ” ì”¬ êµ¬ì¡°/ë¹„í™œì„± ì˜¤ë¸Œì íŠ¸/ì‹¤í–‰ ìˆœì„œì— ë”°ë¼ ì‹¤íŒ¨í•  ìˆ˜ ìˆìŒ.
+/// - ì•µì»¤ ì˜¤ë¸Œì íŠ¸ì— í™•ì‹¤íˆ ì—°ê²°í•´ë‘ë©´ ì•ˆì •ì ì´ë‹¤.
 /// </summary>
-public sealed class AnnotatorAnchor : MonoBehaviour
+public class AnnotatorAnchor : MonoBehaviour
 {
-    /// <summary>
-    /// °£´ÜÇÑ Àü¿ª Á¢±Ù¿ë ½Ì±ÛÅæ.
-    ///
-    /// ÁÖÀÇ:
-    /// - "ÁøÂ¥ ½Ì±ÛÅæ ÆĞÅÏ"ÀÌ¶ó±âº¸´Ù´Â,
-    ///   ¾À¿¡ 1°³¸¸ µĞ´Ù´Â ÀüÁ¦ ÇÏ¿¡ ÆíÀÇ Á¢±ÙÀ» Á¦°øÇÏ´Â ÇüÅÂ.
-    /// </summary>
     public static AnnotatorAnchor Instance { get; private set; }
 
-    /// <summary>
-    /// ½ÇÁ¦ annotator¸¦ ´ã´Â MonoBehaviour ½½·Ô.
-    ///
-    /// ¿Ö MonoBehaviour·Î ¹Ş³ª?
-    /// - Unity Inspector´Â interface(IOverlayAnnotator) Å¸ÀÔÀ» Á÷Á¢ ÇÒ´ç ¸ø ÇÑ´Ù.
-    /// - ´ë½Å MonoBehaviour·Î ¹Ş°í, ·±Å¸ÀÓ¿¡ as IOverlayAnnotator·Î Ä³½ºÆÃÇÑ´Ù.
-    ///
-    /// ¿©±â¿¡ µé¾î°¥ ¼ö ÀÖ´Â ¿¹:
-    /// - Texture2DOverlayAnnotator
-    /// - UIToolkitOverlayAnnotator
-    /// </summary>
+    [Tooltip("IOverlayAnnotator êµ¬í˜„ì²´(ì˜ˆ: UIToolkitOverlayAnnotatorOptimized)ë¥¼ ì—°ê²°í•˜ì„¸ìš”.")]
     [SerializeField] private MonoBehaviour annotatorBehaviour;
 
-    /// <summary>
-    /// ¿ÜºÎ¿¡´Â IOverlayAnnotator·Î ³ëÃâÇÑ´Ù.
-    /// - Ä³½ºÆÃ ½ÇÆĞ(= Àß¸øµÈ ÄÄÆ÷³ÍÆ® ³ÖÀ½) ½Ã nullÀÏ ¼ö ÀÖ´Ù.
-    /// </summary>
     public IOverlayAnnotator Annotator => annotatorBehaviour as IOverlayAnnotator;
 
     private void Awake()
     {
-        // ¾À¿¡ ¿©·¯ °³°¡ »ı±â¸é ¸¶Áö¸· Awake°¡ µ¤¾î¾´´Ù.
-        // ½Ç¹«¿¡¼± Áßº¹ ¹èÄ¡¸¦ ¹æÁöÇÏ´Â Ã¼Å©¸¦ ³Ö±âµµ ÇÑ´Ù.
         Instance = this;
     }
 
     private void OnDestroy()
     {
-        // ÀÚ±â ÀÚ½ÅÀÌ µî·ÏµÈ ÀÎ½ºÅÏ½º¿´À» ¶§¸¸ null·Î Á¤¸®.
         if (Instance == this) Instance = null;
     }
 }

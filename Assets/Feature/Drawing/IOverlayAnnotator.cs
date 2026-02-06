@@ -1,30 +1,31 @@
-using System;
+ï»¿using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// ÇÏ³ªÀÇ ½ºÆ®·ÎÅ©(¼±)¸¦ À¯ÀÏÇÏ°Ô ½Äº°ÇÏ±â À§ÇÑ Å°.
+/// í•˜ë‚˜ì˜ ìŠ¤íŠ¸ë¡œí¬(ì„ )ë¥¼ ìœ ì¼í•˜ê²Œ ì‹ë³„í•˜ê¸° ìœ„í•œ í‚¤.
 /// 
-/// - AuthorId: "´©°¡ ±×·È´ÂÁö"¸¦ ±¸ºĞÇÏ´Â °ª.
-///   - ³×Æ®¿öÅ©¿¡¼­´Â PlayerRef.GetHashCode() °ªÀ» »ç¿ë (AnnotationHub¿¡¼­ »ı¼º)
-///   - ·ÎÄÃ ÀÔ·Â(³×Æ®¿öÅ© ¾øÀÌ ±×¸²)¿¡¼­´Â -1 °°Àº °íÁ¤°ªÀ» »ç¿ëÇØµµ µÊ
+/// - AuthorId: "ëˆ„ê°€ ê·¸ë ¸ëŠ”ì§€"ë¥¼ êµ¬ë¶„í•˜ëŠ” ê°’.
+///   - ë„¤íŠ¸ì›Œí¬ì—ì„œëŠ” PlayerRef.GetHashCode() ê°’ì„ ì‚¬ìš© (AnnotationHubì—ì„œ ìƒì„±)
+///   - ë¡œì»¬ ì…ë ¥(ë„¤íŠ¸ì›Œí¬ ì—†ì´ ê·¸ë¦¼)ì—ì„œëŠ” -1 ê°™ì€ ê³ ì •ê°’ì„ ì‚¬ìš©í•´ë„ ë¨
 /// 
-/// - StrokeId: ÇØ´ç ÀÛ¼ºÀÚ°¡ ·ÎÄÃ¿¡¼­ Áõ°¡½ÃÅ°´Â ½ºÆ®·ÎÅ© ¹øÈ£.
-///   - ¿¹: 1¹ø ¼±, 2¹ø ¼±, 3¹ø ¼±...
+/// - StrokeId: í•´ë‹¹ ì‘ì„±ìê°€ ë¡œì»¬ì—ì„œ ì¦ê°€ì‹œí‚¤ëŠ” ìŠ¤íŠ¸ë¡œí¬ ë²ˆí˜¸.
+///   - ì˜ˆ: 1ë²ˆ ì„ , 2ë²ˆ ì„ , 3ë²ˆ ì„ ...
 /// 
-/// ¡Ø Áß¿äÇÑ Á¡
-///   (AuthorId, StrokeId) ½ÖÀÌ °°À» ¶§¸¸ °°Àº ¼±À¸·Î Ãë±Ş.
-///   ÀÛ¼ºÀÚ°¡ ´Ù¸£¸é StrokeId°¡ °°¾Æµµ ´Ù¸¥ ¼±ÀÌ´Ù.
+/// â€» ì¤‘ìš”í•œ ì 
+///   (AuthorId, StrokeId) ìŒì´ ê°™ì„ ë•Œë§Œ ê°™ì€ ì„ ìœ¼ë¡œ ì·¨ê¸‰.
+///   ì‘ì„±ìê°€ ë‹¤ë¥´ë©´ StrokeIdê°€ ê°™ì•„ë„ ë‹¤ë¥¸ ì„ ì´ë‹¤.
 /// </summary>
 public readonly struct OverlayStrokeKey : System.IEquatable<OverlayStrokeKey>
 {
-    /// <summary>½ºÆ®·ÎÅ© ÀÛ¼ºÀÚ ½Äº°ÀÚ</summary>
+    /// <summary>ìŠ¤íŠ¸ë¡œí¬ ì‘ì„±ì ì‹ë³„ì</summary>
     public readonly int AuthorId;
 
-    /// <summary>ÀÛ¼ºÀÚ°¡ ºÎ¿©ÇÑ ½ºÆ®·ÎÅ© ¹øÈ£</summary>
+    /// <summary>ì‘ì„±ìê°€ ë¶€ì—¬í•œ ìŠ¤íŠ¸ë¡œí¬ ë²ˆí˜¸</summary>
     public readonly int StrokeId;
 
     /// <summary>
-    /// ½ºÆ®·ÎÅ© Å° »ı¼ºÀÚ.
+    /// ìŠ¤íŠ¸ë¡œí¬ í‚¤ ìƒì„±ì.
     /// </summary>
     public OverlayStrokeKey(int authorId, int strokeId)
     {
@@ -33,7 +34,7 @@ public readonly struct OverlayStrokeKey : System.IEquatable<OverlayStrokeKey>
     }
 
     /// <summary>
-    /// Dictionary Å°·Î »ç¿ëÇÏ±â À§ÇÑ µ¿µî ºñ±³.
+    /// Dictionary í‚¤ë¡œ ì‚¬ìš©í•˜ê¸° ìœ„í•œ ë™ë“± ë¹„êµ.
     /// </summary>
     public bool Equals(OverlayStrokeKey other)
         => AuthorId == other.AuthorId && StrokeId == other.StrokeId;
@@ -42,7 +43,7 @@ public readonly struct OverlayStrokeKey : System.IEquatable<OverlayStrokeKey>
         => obj is OverlayStrokeKey other && Equals(other);
 
     /// <summary>
-    /// Dictionary Å°·Î »ç¿ëÇÏ±â À§ÇÑ ÇØ½ÃÄÚµå.
+    /// Dictionary í‚¤ë¡œ ì‚¬ìš©í•˜ê¸° ìœ„í•œ í•´ì‹œì½”ë“œ.
     /// </summary>
     public override int GetHashCode()
     {
@@ -57,68 +58,46 @@ public readonly struct OverlayStrokeKey : System.IEquatable<OverlayStrokeKey>
 }
 
 /// <summary>
-/// ¿À¹ö·¹ÀÌ(È­¸é À§) µå·ÎÀ×À» ¼öÇàÇÏ´Â °øÅë ÀÎÅÍÆäÀÌ½º.
-/// 
-/// Áß¿äÇÑ º¯°æÁ¡:
-/// - Begin/Add/End°¡ "ÇöÀç ½ºÆ®·ÎÅ© 1°³"°¡ ¾Æ´Ï¶ó,
-///   OverlayStrokeKey¸¦ ÅëÇØ "¿©·¯ ½ºÆ®·ÎÅ©¸¦ µ¿½Ã¿¡" Ã³¸®ÇÒ ¼ö ÀÖ°Ô ¼³°è.
+/// ì˜¤ë²„ë ˆì´(í™”ë©´ ìœ„) ë“œë¡œì‰ì„ ìˆ˜í–‰í•˜ëŠ” ê³µí†µ ì¸í„°í˜ì´ìŠ¤.
 /// </summary>
 public interface IOverlayAnnotator
 {
     /// <summary>
-    /// ·»´õ¸µ ´ë»ó(UI/ÅØ½ºÃ³ µî)ÀÌ ÁØºñµÇ¾î ÀÔ·Â/±×¸®±â°¡ °¡´ÉÇÑ »óÅÂÀÎÁö ¿©ºÎ.
+    /// ë Œë”ë§ ëŒ€ìƒ(UI/í…ìŠ¤ì²˜ ë“±)ì´ ì¤€ë¹„ë˜ì–´ ì…ë ¥/ê·¸ë¦¬ê¸°ê°€ ê°€ëŠ¥í•œ ìƒíƒœì¸ì§€ ì—¬ë¶€.
     /// </summary>
     bool IsReady { get; }
 
     /// <summary>
-    /// ¿À¹ö·¹ÀÌ Ç¥½Ã È°¼º/ºñÈ°¼º.
-    /// - ºñÈ°¼º ½Ã ÀÔ·ÂÀ» ¹Ş´õ¶óµµ º¸ÀÌÁö ¾Ê´Â Ã³¸® µîÀ» ÇÒ ¼ö ÀÖÀ½.
-    /// </summary>
-    void SetActive(bool active);
-
-    /// <summary>
-    /// È­¸é ÁÂÇ¥(Screen) -> ¿À¹ö·¹ÀÌ ±âÁØ Á¤±ÔÈ­ ÁÂÇ¥(0~1) º¯È¯.
-    /// - ¼º°øÇÏ¸é normalized¿¡ °ªÀÌ Ã¤¿öÁö°í true ¹İÈ¯.
-    /// - ½ÇÆĞÇÏ¸é false ¹İÈ¯ (¿À¹ö·¹ÀÌ ¹ÛÀ» Å¬¸¯Çß°Å³ª ÁØºñ ¹Ì¿Ï·á µî)
+    /// í™”ë©´ ì¢Œí‘œ(Screen) -> ì˜¤ë²„ë ˆì´ ê¸°ì¤€ ì •ê·œí™” ì¢Œí‘œ(0~1) ë³€í™˜.
+    /// - ì„±ê³µí•˜ë©´ normalizedì— ê°’ì´ ì±„ì›Œì§€ê³  true ë°˜í™˜.
+    /// - ì‹¤íŒ¨í•˜ë©´ false ë°˜í™˜ (ì˜¤ë²„ë ˆì´ ë°–ì„ í´ë¦­í–ˆê±°ë‚˜ ì¤€ë¹„ ë¯¸ì™„ë£Œ ë“±)
+    /// 
+    /// ì™œ ì •ê·œí™” ì¢Œí‘œë¥¼ ì“°ë‚˜?
+    /// - ì„œë¡œ ë‹¤ë¥¸ í•´ìƒë„/ìœˆë„ìš° í¬ê¸°ì—ì„œë„ ë™ì¼í•œ ìœ„ì¹˜ë¥¼ ê³µìœ í•˜ê¸° ìœ„í•´.
+    /// - ë„¤íŠ¸ì›Œí¬ë¡œ ë³´ë‚¼ ë•Œ float ê·¸ëŒ€ë¡œ ë³´ë‚´ë©´ payloadê°€ ì»¤ì§€ë¯€ë¡œ,
+    ///   ì •ê·œí™” ì¢Œí‘œë¥¼ ushort íŒ¨í‚¹ìœ¼ë¡œ ì¤„ì´ê¸°ì—ë„ ìœ ë¦¬.
     /// </summary>
     bool TryScreenToNormalized(Vector2 screenPos, out Vector2 normalized);
 
     /// <summary>
-    /// ÇöÀç ¿À¹ö·¹ÀÌ ·»´õ¸µ ¿µ¿ªÀÇ ÇÈ¼¿ Å©±â.
-    /// - min distance °°Àº Á¤±ÔÈ­ °Å¸® °è»ê¿¡ »ç¿ë.
+    /// ë²Œí¬ ëª¨ë“œ ì‹œì‘.
+    /// 
+    /// ì™œ í•„ìš”í•˜ë‚˜?
+    /// - Late Join ìŠ¤ëƒ…ìƒ· ì¬ìƒ ì‹œ í¬ì¸íŠ¸ ìˆ˜ì²œ~ìˆ˜ë§Œê°œê°€ í•œ ë²ˆì— ë“¤ì–´ì˜¬ ìˆ˜ ìˆìŒ.
+    /// - ì´ë•Œ AddPointsë§ˆë‹¤ ë¦¬í˜ì¸íŠ¸/ì—…ë°ì´íŠ¸ê°€ ë°œìƒí•˜ë©´ í”„ë ˆì„ì´ ì°¢ì–´ì§„ë‹¤.
+    /// - BeginBulk~EndBulkë¡œ ë¬¶ì–´ì„œ "ë§ˆì§€ë§‰ì— í•œ ë²ˆë§Œ" ë¦¬í˜ì¸íŠ¸ í•˜ê²Œ ë§Œë“¤ë©´ ë¹„ìš©ì´ í¬ê²Œ ì¤„ì–´ë“¦.
     /// </summary>
-    Vector2 GetRenderSizePx();
-
-    // ===== µå·ÎÀ×(½ºÆ®·ÎÅ©) =====
-
-    /// <summary>
-    /// Æ¯Á¤ ½ºÆ®·ÎÅ©(key)¿¡ ´ëÇÑ ±×¸®±â ½ÃÀÛ.
-    /// - key: (ÀÛ¼ºÀÚ, ½ºÆ®·ÎÅ©ID)·Î À¯ÀÏÇÑ ¼±À» ½Äº°
-    /// - color/widthPx: ¼± ½ºÅ¸ÀÏ
-    /// </summary>
-    void BeginStroke(OverlayStrokeKey key, Color color, float widthPx);
+    void BeginBulk();
 
     /// <summary>
-    /// Æ¯Á¤ ½ºÆ®·ÎÅ©(key)¿¡ Á¡(Á¤±ÔÈ­ ÁÂÇ¥)À» Ãß°¡.
+    /// ë²Œí¬ ëª¨ë“œ ì¢…ë£Œ(í•„ìš”í•˜ë©´ ì—¬ê¸°ì„œ ìµœì¢… ë¦¬í˜ì¸íŠ¸).
     /// </summary>
-    void AddStrokePoint(OverlayStrokeKey key, Vector2 normalized);
+    void EndBulk();
 
-    /// <summary>
-    /// Æ¯Á¤ ½ºÆ®·ÎÅ©(key) Á¾·á.
-    /// </summary>
+    void BeginStroke(OverlayStrokeKey key, Color32 color, float widthPx);
+    void AddPoints(OverlayStrokeKey key, IReadOnlyList<Vector2> normPoints);
     void EndStroke(OverlayStrokeKey key);
 
-    // ===== ÅØ½ºÆ® =====
-
-    /// <summary>
-    /// ÁöÁ¤ À§Ä¡(Á¤±ÔÈ­)¿¡ ÅØ½ºÆ® Ãß°¡.
-    /// </summary>
-    void AddText(Vector2 normalized, string text);
-
-    // ===== ÀüÃ¼ ÃÊ±âÈ­ =====
-
-    /// <summary>
-    /// ¸ğµç ½ºÆ®·ÎÅ©/ÅØ½ºÆ® Á¦°Å.
-    /// </summary>
-    void Clear();
+    void AddLabel(int labelId, Vector2 normPos, string text);
+    void ClearAll();
 }
